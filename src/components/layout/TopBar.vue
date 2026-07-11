@@ -3,12 +3,14 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Menu, Bell, Search, User, KeyRound, LogOut } from '@lucide/vue'
 import BaseAvatar from '@/components/ui/BaseAvatar.vue'
+import { useAuthStore } from '@/stores/auth'
 
 defineEmits<{
   'toggle-sidebar': []
 }>()
 
 const router = useRouter()
+const auth = useAuthStore()
 const showUserMenu = ref(false)
 const menuRef = ref<HTMLElement>()
 
@@ -29,8 +31,8 @@ function navigate(path: string) {
 
 function logout() {
   showUserMenu.value = false
-  // In a real app, clear auth state here
-  router.push('/')
+  auth.logout()
+  router.push({ name: 'login' })
 }
 
 onMounted(() => document.addEventListener('click', handleClickOutside))
@@ -78,8 +80,10 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
           class="flex items-center gap-2 cursor-pointer rounded-md p-1 hover:bg-gray-50 transition-colors"
           @click.stop="toggleUserMenu"
         >
-          <BaseAvatar name="Angga Dev" size="sm" />
-          <span class="text-sm font-medium text-gray-700 hidden sm:inline">Angga Dev</span>
+          <BaseAvatar :name="auth.user?.name ?? ''" size="sm" />
+          <span class="text-sm font-medium text-gray-700 hidden sm:inline">{{
+            auth.user?.name
+          }}</span>
         </button>
 
         <Transition
@@ -96,8 +100,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
           >
             <!-- User info -->
             <div class="px-4 py-3 border-b border-gray-100">
-              <p class="text-sm font-semibold text-gray-900">Angga Dev</p>
-              <p class="text-xs text-gray-500">angga@purdia.com</p>
+              <p class="text-sm font-semibold text-gray-900">{{ auth.user?.name }}</p>
+              <p class="text-xs text-gray-500">{{ auth.user?.email }}</p>
             </div>
 
             <!-- Menu items -->
