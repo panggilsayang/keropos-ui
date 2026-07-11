@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { BaseCard, BaseTable, BaseBadge, BaseButton } from '@/components/ui'
+import { BaseCard, BaseTable, BaseBadge, BaseButton, BasePagination } from '@/components/ui'
 import { DropdownButton } from '@/components/ui'
 import { Plus, Eye, Pencil, Trash2, FileText } from '@lucide/vue'
 import type { TableColumn } from '@/components/ui/BaseTable.vue'
@@ -131,6 +131,7 @@ const totalAmount = computed(() => invoices.value.reduce((sum, inv) => sum + inv
 const unpaidCount = computed(
   () => invoices.value.filter((i) => i.status === 'unpaid' || i.status === 'overdue').length,
 )
+const currentPage = ref(1)
 </script>
 
 <template>
@@ -202,6 +203,15 @@ const unpaidCount = computed(
           </DropdownButton>
         </template>
       </BaseTable>
+      <div class="px-4 py-3 border-t border-gray-200">
+        <BasePagination
+          v-model:current-page="currentPage"
+          :total-pages="5"
+          :total-items="48"
+          :per-page="10"
+          size="sm"
+        />
+      </div>
     </BaseCard>
   </div>
 </template>

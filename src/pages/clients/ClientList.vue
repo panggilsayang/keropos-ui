@@ -8,6 +8,7 @@ import {
   BaseBadge,
   BaseAvatar,
   BaseModal,
+  BasePagination,
   DropdownButton,
 } from '@/components/ui'
 import { Plus, MoreHorizontal, Eye, Edit, Trash2, Building2, User, Upload } from '@lucide/vue'
@@ -17,6 +18,7 @@ import type { DropdownItem } from '@/components/ui/DropdownButton.vue'
 const router = useRouter()
 const showDeleteModal = ref(false)
 const selectedClient = ref<Record<string, unknown>>({})
+const clientPage = ref(1)
 
 const columns: TableColumn[] = [
   { key: 'name', label: 'Client', sortable: true },
@@ -194,6 +196,15 @@ function handleAction(item: DropdownItem, row: Record<string, unknown>) {
           />
         </template>
       </BaseTable>
+      <div class="px-4 py-3 border-t border-gray-200">
+        <BasePagination
+          v-model:current-page="clientPage"
+          :total-pages="4"
+          :total-items="36"
+          :per-page="10"
+          size="sm"
+        />
+      </div>
     </BaseCard>
 
     <!-- Delete Modal -->

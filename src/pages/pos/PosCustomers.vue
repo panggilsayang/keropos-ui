@@ -9,6 +9,7 @@ import {
   BaseModal,
   BaseInput,
   BaseSelect,
+  BasePagination,
   DropdownButton,
 } from '@/components/ui'
 import { Plus, MoreHorizontal, Eye, Edit, Trash2 } from '@lucide/vue'
@@ -16,6 +17,7 @@ import type { TableColumn } from '@/components/ui/BaseTable.vue'
 import type { DropdownItem } from '@/components/ui/DropdownButton.vue'
 import type { SelectOption } from '@/components/ui/BaseSelect.vue'
 
+const custPage = ref(1)
 const showCreateModal = ref(false)
 const showDetailModal = ref(false)
 const selectedCustomer = ref<Record<string, unknown>>({})
@@ -182,6 +184,15 @@ function formatRp(n: number) {
           />
         </template>
       </BaseTable>
+      <div class="px-4 py-3 border-t border-gray-200">
+        <BasePagination
+          v-model:current-page="custPage"
+          :total-pages="4"
+          :total-items="35"
+          :per-page="10"
+          size="sm"
+        />
+      </div>
     </BaseCard>
 
     <!-- Create Modal -->

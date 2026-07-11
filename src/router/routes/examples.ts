@@ -91,6 +91,11 @@ const routes: RouteRecordRaw[] = [
     name: 'example-grid',
     component: () => import('@/pages/examples/GridExample.vue'),
   },
+  {
+    path: '/examples/pagination',
+    name: 'example-pagination',
+    component: () => import('@/pages/examples/PaginationExample.vue'),
+  },
 ]
 
 export default routes

@@ -9,6 +9,7 @@ import {
   BaseInput,
   BaseSelect,
   BaseToggle,
+  BasePagination,
   DropdownButton,
 } from '@/components/ui'
 import { Plus, MoreHorizontal, Edit, Trash2, Percent, Tag } from '@lucide/vue'
@@ -16,6 +17,7 @@ import type { TableColumn } from '@/components/ui/BaseTable.vue'
 import type { DropdownItem } from '@/components/ui/DropdownButton.vue'
 import type { SelectOption } from '@/components/ui/BaseSelect.vue'
 
+const discPage = ref(1)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 
@@ -200,6 +202,15 @@ function openCreate() {
           />
         </template>
       </BaseTable>
+      <div class="px-4 py-3 border-t border-gray-200">
+        <BasePagination
+          v-model:current-page="discPage"
+          :total-pages="2"
+          :total-items="15"
+          :per-page="10"
+          size="sm"
+        />
+      </div>
     </BaseCard>
 
     <!-- Create Modal -->

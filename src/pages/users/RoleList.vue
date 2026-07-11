@@ -5,6 +5,7 @@ import {
   BaseButton,
   BaseBadge,
   BaseModal,
+  BasePagination,
   DropdownButton,
 } from '@/components/ui'
 import { ref } from 'vue'
@@ -14,6 +15,7 @@ import type { TableColumn } from '@/components/ui/BaseTable.vue'
 import type { DropdownItem } from '@/components/ui/DropdownButton.vue'
 
 const router = useRouter()
+const rolePage = ref(1)
 const showDeleteModal = ref(false)
 const selectedRole = ref<Record<string, unknown>>({})
 
@@ -126,6 +128,15 @@ function handleAction(item: DropdownItem, row: Record<string, unknown>) {
           />
         </template>
       </BaseTable>
+      <div class="px-4 py-3 border-t border-gray-200">
+        <BasePagination
+          v-model:current-page="rolePage"
+          :total-pages="2"
+          :total-items="12"
+          :per-page="10"
+          size="sm"
+        />
+      </div>
     </BaseCard>
 
     <!-- Delete Modal -->
