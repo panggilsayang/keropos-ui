@@ -79,6 +79,11 @@ const router = createRouter({
       component: () => import('@/pages/examples/ChartsExample.vue'),
     },
     {
+      path: '/examples/skeleton',
+      name: 'example-skeleton',
+      component: () => import('@/pages/examples/SkeletonExample.vue'),
+    },
+    {
       path: '/profile',
       name: 'profile',
       component: () => import('@/pages/ProfilePage.vue'),

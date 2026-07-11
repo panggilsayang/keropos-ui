@@ -13,6 +13,7 @@ import {
   BarChart3,
   Activity,
   Gauge,
+  Bone,
 } from '@lucide/vue'
 
 const components = [
@@ -93,6 +94,12 @@ const components = [
     to: '/examples/charts',
     icon: BarChart3,
     description: 'Line, bar, and doughnut charts with Chart.js.',
+  },
+  {
+    label: 'Skeleton',
+    to: '/examples/skeleton',
+    icon: Bone,
+    description: 'Loading placeholders for all components and layouts.',
   },
 ]
 </script>

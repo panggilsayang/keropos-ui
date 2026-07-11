@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Activity,
   Gauge,
+  Bone,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -59,6 +60,7 @@ const menuItems: MenuItem[] = [
       { icon: Activity, label: 'Progress', to: '/examples/progress' },
       { icon: Gauge, label: 'Stat Card', to: '/examples/stat-card' },
       { icon: BarChart3, label: 'Charts', to: '/examples/charts' },
+      { icon: Bone, label: 'Skeleton', to: '/examples/skeleton' },
     ],
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },
