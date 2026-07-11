@@ -20,6 +20,14 @@ function toggleSidebar() {
       <TopBar @toggle-sidebar="toggleSidebar" />
       <main class="flex-1 p-6 overflow-auto dark:bg-gray-900">
         <slot />
+        <footer class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div
+            class="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400 dark:text-gray-500"
+          >
+            <span>&copy; {{ new Date().getFullYear() }} Purdia. All rights reserved.</span>
+            <span>v0.1.0</span>
+          </div>
+        </footer>
       </main>
     </div>
   </div>
