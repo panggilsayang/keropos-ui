@@ -104,6 +104,36 @@ const router = createRouter({
       component: () => import('@/pages/users/UserList.vue'),
     },
     {
+      path: '/clients',
+      name: 'clients',
+      component: () => import('@/pages/clients/ClientList.vue'),
+    },
+    {
+      path: '/projects',
+      name: 'projects',
+      component: () => import('@/pages/projects/ProjectKanban.vue'),
+    },
+    {
+      path: '/projects/tasks/:id',
+      name: 'task-detail',
+      component: () => import('@/pages/projects/TaskDetail.vue'),
+    },
+    {
+      path: '/clients/create',
+      name: 'client-create',
+      component: () => import('@/pages/clients/ClientCreate.vue'),
+    },
+    {
+      path: '/clients/:id',
+      name: 'client-detail',
+      component: () => import('@/pages/clients/ClientDetail.vue'),
+    },
+    {
+      path: '/clients/:id/edit',
+      name: 'client-edit',
+      component: () => import('@/pages/clients/ClientEdit.vue'),
+    },
+    {
       path: '/users/roles',
       name: 'roles',
       component: () => import('@/pages/users/RoleList.vue'),

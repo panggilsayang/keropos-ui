@@ -11,14 +11,14 @@ function toggleSidebar() {
 </script>
 
 <template>
-  <div class="flex min-h-screen">
+  <div class="flex h-screen overflow-hidden">
     <SidebarNav :collapsed="sidebarCollapsed" />
     <div
-      class="flex-1 flex flex-col transition-[margin-left] duration-200"
+      class="flex-1 flex flex-col h-screen overflow-hidden transition-[margin-left] duration-200"
       :class="sidebarCollapsed ? 'ml-[4.5rem]' : 'ml-64'"
     >
       <TopBar @toggle-sidebar="toggleSidebar" />
-      <main class="flex-1 p-6 overflow-y-auto">
+      <main class="flex-1 p-6 overflow-auto">
         <slot />
       </main>
     </div>

@@ -25,6 +25,8 @@ import {
   Bone,
   Shield,
   Key,
+  Contact,
+  Kanban,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -67,6 +69,8 @@ const menuItems: MenuItem[] = [
     ],
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },
+  { icon: Contact, label: 'Clients', to: '/clients' },
+  { icon: Kanban, label: 'Projects', to: '/projects' },
   {
     icon: Users,
     label: 'User Management',
