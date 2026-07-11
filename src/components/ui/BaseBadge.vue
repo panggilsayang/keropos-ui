@@ -19,12 +19,12 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const variantClasses: Record<BadgeVariant, string> = {
-  primary: 'bg-primary-50 text-primary-600',
-  secondary: 'bg-gray-100 text-gray-600',
-  success: 'bg-emerald-50 text-emerald-600',
-  warning: 'bg-amber-50 text-amber-600',
-  danger: 'bg-red-50 text-red-600',
-  info: 'bg-cyan-50 text-cyan-600',
+  primary: 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300',
+  secondary: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  success: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300',
+  warning: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
+  danger: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300',
+  info: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300',
 }
 
 const sizeClasses: Record<BadgeSize, string> = {

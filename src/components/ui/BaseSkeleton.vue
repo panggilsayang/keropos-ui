@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const classes = computed(() => {
-  const base = 'animate-pulse bg-gray-200'
+  const base = 'animate-pulse bg-gray-200 dark:bg-gray-700'
 
   const variantMap: Record<SkeletonVariant, string> = {
     text: `h-4 ${props.rounded ? 'rounded' : ''} w-full`,

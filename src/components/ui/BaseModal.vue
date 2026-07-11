@@ -34,7 +34,7 @@ const sizeClasses: Record<ModalSize, string> = {
 }
 
 const modalClasses = computed(() => [
-  'bg-white rounded-xl shadow-xl max-h-[85vh] flex flex-col w-full',
+  'bg-white rounded-xl shadow-xl max-h-[85vh] flex flex-col w-full dark:bg-gray-800',
   sizeClasses[props.size],
 ])
 </script>
@@ -50,24 +50,24 @@ const modalClasses = computed(() => [
         <div :class="modalClasses">
           <div
             v-if="title || closable"
-            class="flex items-center justify-between px-6 py-4 border-b border-gray-100"
+            class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700"
           >
-            <h3 v-if="title" class="text-lg font-semibold">{{ title }}</h3>
+            <h3 v-if="title" class="text-lg font-semibold dark:text-gray-100">{{ title }}</h3>
             <button
               v-if="closable"
-              class="text-2xl text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded p-1 leading-none cursor-pointer"
+              class="text-2xl text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded p-1 leading-none cursor-pointer dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
               @click="close"
               aria-label="Close"
             >
               &times;
             </button>
           </div>
-          <div class="p-6 overflow-y-auto">
+          <div class="p-6 overflow-y-auto dark:text-gray-300">
             <slot />
           </div>
           <div
             v-if="$slots.footer"
-            class="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end"
+            class="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end dark:border-gray-700"
           >
             <slot name="footer" />
           </div>

@@ -123,7 +123,7 @@ function isExpanded(index: number) {
           v-model="searchQuery"
           type="text"
           :placeholder="searchPlaceholder"
-          class="w-64 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 placeholder:text-gray-400"
+          class="w-64 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 placeholder:text-gray-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:placeholder:text-gray-500 dark:focus:ring-primary-900/30"
         />
         <span
           v-if="searchQuery"
@@ -144,7 +144,10 @@ function isExpanded(index: number) {
           <tr>
             <th
               v-if="expandable"
-              :class="[cellPadding, 'w-10 bg-gray-50 border-b border-gray-200']"
+              :class="[
+                cellPadding,
+                'w-10 bg-gray-50 border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700',
+              ]"
             />
             <th
               v-for="col in columns"
@@ -152,14 +155,14 @@ function isExpanded(index: number) {
               :style="{ width: col.width }"
               :class="[
                 cellPadding,
-                'font-semibold text-gray-600 uppercase text-[0.6875rem] tracking-wide border-b border-gray-200 bg-gray-50',
+                'font-semibold text-gray-600 uppercase text-[0.6875rem] tracking-wide border-b border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400',
                 col.align === 'center'
                   ? 'text-center'
                   : col.align === 'right'
                     ? 'text-right'
                     : 'text-left',
                 col.sortable
-                  ? 'cursor-pointer select-none hover:text-gray-900 transition-colors'
+                  ? 'cursor-pointer select-none hover:text-gray-900 transition-colors dark:hover:text-gray-200'
                   : '',
               ]"
               @click="handleSort(col)"
@@ -185,15 +188,18 @@ function isExpanded(index: number) {
           <template v-for="(row, index) in filteredData" :key="index">
             <tr
               :class="[
-                hoverable ? 'hover:bg-gray-50' : '',
-                variant === 'striped' && index % 2 === 1 ? 'bg-gray-50' : '',
+                hoverable ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : '',
+                variant === 'striped' && index % 2 === 1 ? 'bg-gray-50 dark:bg-gray-800/50' : '',
                 expandable ? 'cursor-pointer' : '',
               ]"
               @click="expandable ? toggleRow(index) : undefined"
             >
               <td
                 v-if="expandable"
-                :class="[cellPadding, 'border-b border-gray-100 w-10 text-gray-400']"
+                :class="[
+                  cellPadding,
+                  'border-b border-gray-100 w-10 text-gray-400 dark:border-gray-700',
+                ]"
               >
                 <component
                   :is="isExpanded(index) ? ChevronDown : ChevronRight"
@@ -205,8 +211,8 @@ function isExpanded(index: number) {
                 :key="col.key"
                 :class="[
                   cellPadding,
-                  'border-b border-gray-100 text-gray-700',
-                  variant === 'bordered' ? 'border border-gray-200' : '',
+                  'border-b border-gray-100 text-gray-700 dark:border-gray-700 dark:text-gray-300',
+                  variant === 'bordered' ? 'border border-gray-200 dark:border-gray-700' : '',
                   col.align === 'center'
                     ? 'text-center'
                     : col.align === 'right'
@@ -221,10 +227,15 @@ function isExpanded(index: number) {
             </tr>
             <!-- Expanded Row -->
             <tr v-if="expandable && isExpanded(index)">
-              <td :colspan="columns.length + 1" class="bg-gray-50 border-b border-gray-100">
+              <td
+                :colspan="columns.length + 1"
+                class="bg-gray-50 border-b border-gray-100 dark:bg-gray-800/50 dark:border-gray-700"
+              >
                 <div class="px-4 py-3">
                   <slot name="expanded" :row="row" :index="index">
-                    <pre class="text-xs text-gray-600">{{ JSON.stringify(row, null, 2) }}</pre>
+                    <pre class="text-xs text-gray-600 dark:text-gray-400">{{
+                      JSON.stringify(row, null, 2)
+                    }}</pre>
                   </slot>
                 </div>
               </td>
@@ -235,7 +246,7 @@ function isExpanded(index: number) {
           <tr v-if="filteredData.length === 0">
             <td
               :colspan="columns.length + (expandable ? 1 : 0)"
-              class="px-4 py-8 text-center text-gray-400"
+              class="px-4 py-8 text-center text-gray-400 dark:text-gray-500"
             >
               <slot name="empty">
                 {{ searchQuery ? 'No results found.' : 'No data available.' }}

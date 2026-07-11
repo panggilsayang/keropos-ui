@@ -18,7 +18,7 @@ function toggleSidebar() {
       :class="sidebarCollapsed ? 'ml-[4.5rem]' : 'ml-64'"
     >
       <TopBar @toggle-sidebar="toggleSidebar" />
-      <main class="flex-1 p-6 overflow-auto">
+      <main class="flex-1 p-6 overflow-auto dark:bg-gray-900">
         <slot />
       </main>
     </div>

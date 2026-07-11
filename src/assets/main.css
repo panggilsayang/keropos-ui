@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
@@ -16,5 +18,51 @@
 }
 
 body {
-  @apply bg-gray-50 text-gray-800 text-sm antialiased;
+  @apply bg-gray-50 text-gray-800 text-sm antialiased dark:bg-gray-900 dark:text-gray-200;
+}
+
+code {
+  @apply dark:bg-gray-700 dark:text-gray-300;
+}
+
+/* Dark mode: remap gray text colors to lighter shades for readability */
+.dark .text-gray-900 {
+  color: var(--color-gray-100);
+}
+.dark .text-gray-800 {
+  color: var(--color-gray-200);
+}
+.dark .text-gray-700 {
+  color: var(--color-gray-300);
+}
+.dark .text-gray-600 {
+  color: var(--color-gray-400);
+}
+.dark .text-gray-500 {
+  color: var(--color-gray-400);
+}
+.dark .text-gray-400 {
+  color: var(--color-gray-500);
+}
+
+/* Dark mode: remap gray borders */
+.dark .border-gray-200 {
+  border-color: var(--color-gray-700);
+}
+.dark .border-gray-100 {
+  border-color: var(--color-gray-700);
+}
+.dark .border-gray-50 {
+  border-color: var(--color-gray-800);
+}
+
+/* Dark mode: remap gray backgrounds */
+.dark .bg-gray-50 {
+  background-color: var(--color-gray-900);
+}
+.dark .bg-gray-100 {
+  background-color: var(--color-gray-800);
+}
+.dark .bg-white {
+  background-color: var(--color-gray-800);
 }

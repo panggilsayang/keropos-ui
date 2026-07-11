@@ -303,12 +303,14 @@ const sizeClasses: Record<string, string> = {
 
 <template>
   <div ref="containerRef" class="flex flex-col gap-1">
-    <label v-if="label" class="text-sm font-medium text-gray-700">{{ label }}</label>
+    <label v-if="label" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{
+      label
+    }}</label>
 
     <!-- Trigger -->
     <div
       ref="triggerRef"
-      class="flex items-center gap-2 border border-gray-300 rounded-md bg-white cursor-pointer transition-all duration-150 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100"
+      class="flex items-center gap-2 border border-gray-300 rounded-md bg-white cursor-pointer transition-all duration-150 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100 dark:bg-gray-800 dark:border-gray-600 dark:focus-within:ring-primary-900/30"
       :class="[
         sizeClasses[size],
         disabled ? 'opacity-50 cursor-not-allowed' : '',
@@ -317,8 +319,10 @@ const sizeClasses: Record<string, string> = {
       @click="open"
     >
       <Calendar class="w-4 h-4 text-gray-400 shrink-0" />
-      <span v-if="displayValue" class="flex-1 text-gray-800 truncate">{{ displayValue }}</span>
-      <span v-else class="flex-1 text-gray-400 truncate">{{
+      <span v-if="displayValue" class="flex-1 text-gray-800 truncate dark:text-gray-200">{{
+        displayValue
+      }}</span>
+      <span v-else class="flex-1 text-gray-400 truncate dark:text-gray-500">{{
         placeholder ||
         (mode === 'time' ? 'Select time' : mode === 'range' ? 'Select range' : 'Select date')
       }}</span>
@@ -345,7 +349,7 @@ const sizeClasses: Record<string, string> = {
           v-if="isOpen"
           data-datepicker-portal
           :style="dropdownStyle"
-          class="bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-[18rem]"
+          class="bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-[18rem] dark:bg-gray-800 dark:border-gray-700"
         >
           <!-- Time Only -->
           <template v-if="mode === 'time'">

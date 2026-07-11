@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Menu, Bell, Search, User, KeyRound, LogOut } from '@lucide/vue'
+import { Menu, Bell, Search, User, KeyRound, LogOut, Sun, Moon } from '@lucide/vue'
 import BaseAvatar from '@/components/ui/BaseAvatar.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeStore } from '@/stores/theme'
 
 defineEmits<{
   'toggle-sidebar': []
@@ -11,6 +12,7 @@ defineEmits<{
 
 const router = useRouter()
 const auth = useAuthStore()
+const themeStore = useThemeStore()
 const showUserMenu = ref(false)
 const menuRef = ref<HTMLElement>()
 
@@ -41,29 +43,41 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 <template>
   <header
-    class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 h-14 sticky top-0 z-40"
+    class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 h-14 sticky top-0 z-40 dark:bg-gray-800 dark:border-gray-700"
   >
     <div class="flex items-center gap-4">
       <button
-        class="p-1 rounded-md text-gray-600 hover:bg-gray-100 cursor-pointer"
+        class="p-1 rounded-md text-gray-600 hover:bg-gray-100 cursor-pointer dark:text-gray-300 dark:hover:bg-gray-700"
         @click="$emit('toggle-sidebar')"
         aria-label="Toggle sidebar"
       >
         <Menu :size="20" />
       </button>
-      <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5">
-        <Search :size="16" class="text-gray-400" />
+      <div
+        class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 dark:bg-gray-700 dark:border-gray-600"
+      >
+        <Search :size="16" class="text-gray-400 dark:text-gray-500" />
         <input
           type="text"
           placeholder="Search..."
-          class="border-none outline-none bg-transparent text-sm w-56 placeholder:text-gray-400"
+          class="border-none outline-none bg-transparent text-sm w-56 placeholder:text-gray-400 dark:text-gray-200 dark:placeholder:text-gray-500"
         />
       </div>
     </div>
 
     <div class="flex items-center gap-4">
+      <!-- Theme toggle -->
       <button
-        class="relative p-1 rounded-md text-gray-600 hover:bg-gray-100 cursor-pointer"
+        class="p-1 rounded-md text-gray-600 hover:bg-gray-100 cursor-pointer dark:text-gray-300 dark:hover:bg-gray-700"
+        aria-label="Toggle theme"
+        @click="themeStore.toggle()"
+      >
+        <Moon v-if="themeStore.theme === 'light'" :size="20" />
+        <Sun v-else :size="20" />
+      </button>
+
+      <button
+        class="relative p-1 rounded-md text-gray-600 hover:bg-gray-100 cursor-pointer dark:text-gray-300 dark:hover:bg-gray-700"
         aria-label="Notifications"
       >
         <Bell :size="20" />
@@ -77,11 +91,11 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       <!-- User dropdown -->
       <div ref="menuRef" class="relative">
         <button
-          class="flex items-center gap-2 cursor-pointer rounded-md p-1 hover:bg-gray-50 transition-colors"
+          class="flex items-center gap-2 cursor-pointer rounded-md p-1 hover:bg-gray-50 transition-colors dark:hover:bg-gray-700"
           @click.stop="toggleUserMenu"
         >
           <BaseAvatar :name="auth.user?.name ?? ''" size="sm" />
-          <span class="text-sm font-medium text-gray-700 hidden sm:inline">{{
+          <span class="text-sm font-medium text-gray-700 hidden sm:inline dark:text-gray-200">{{
             auth.user?.name
           }}</span>
         </button>
@@ -96,36 +110,38 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
         >
           <div
             v-if="showUserMenu"
-            class="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+            class="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 dark:bg-gray-800 dark:border-gray-700"
           >
             <!-- User info -->
-            <div class="px-4 py-3 border-b border-gray-100">
-              <p class="text-sm font-semibold text-gray-900">{{ auth.user?.name }}</p>
-              <p class="text-xs text-gray-500">{{ auth.user?.email }}</p>
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+              <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {{ auth.user?.name }}
+              </p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ auth.user?.email }}</p>
             </div>
 
             <!-- Menu items -->
             <div class="py-1">
               <button
-                class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
+                class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
                 @click="navigate('/profile')"
               >
-                <User class="w-4 h-4 text-gray-400" />
+                <User class="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 My Profile
               </button>
               <button
-                class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
+                class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
                 @click="navigate('/change-password')"
               >
-                <KeyRound class="w-4 h-4 text-gray-400" />
+                <KeyRound class="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 Change Password
               </button>
             </div>
 
             <!-- Logout -->
-            <div class="border-t border-gray-100 py-1">
+            <div class="border-t border-gray-100 py-1 dark:border-gray-700">
               <button
-                class="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                class="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer transition-colors dark:text-red-400 dark:hover:bg-red-900/20"
                 @click="logout"
               >
                 <LogOut class="w-4 h-4" />

@@ -87,21 +87,25 @@ const tabClasses = computed(() => {
 
     const variants: Record<TabVariant, { active: string; inactive: string }> = {
       default: {
-        active: 'text-primary-600 border-primary-500',
-        inactive: 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300',
+        active: 'text-primary-600 border-primary-500 dark:text-primary-400',
+        inactive:
+          'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200',
       },
       pills: {
         active: 'bg-primary-500 text-white rounded-md',
-        inactive: 'text-gray-600 hover:bg-gray-100 rounded-md',
+        inactive:
+          'text-gray-600 hover:bg-gray-100 rounded-md dark:text-gray-400 dark:hover:bg-gray-700',
       },
       underline: {
-        active: 'text-primary-600 border-primary-500',
-        inactive: 'text-gray-500 border-transparent hover:text-gray-700',
+        active: 'text-primary-600 border-primary-500 dark:text-primary-400',
+        inactive:
+          'text-gray-500 border-transparent hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
       },
       bordered: {
         active:
-          'bg-white text-primary-600 border border-gray-200 border-b-white rounded-t-md -mb-px',
-        inactive: 'text-gray-500 border border-transparent hover:text-gray-700',
+          'bg-white text-primary-600 border border-gray-200 border-b-white rounded-t-md -mb-px dark:bg-gray-800 dark:border-gray-700 dark:border-b-gray-800',
+        inactive:
+          'text-gray-500 border border-transparent hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
       },
     }
 
@@ -130,12 +134,15 @@ const tabClasses = computed(() => {
 
 const navBorderClasses = computed(() => {
   if (props.variant === 'pills') return ''
-  if (props.variant === 'bordered') return isVertical.value ? '' : 'border-b border-gray-200'
+  if (props.variant === 'bordered')
+    return isVertical.value ? '' : 'border-b border-gray-200 dark:border-gray-700'
 
   if (isVertical.value) {
     return '' // border already on nav wrapper
   }
-  return props.placement === 'bottom' ? 'border-t border-gray-200' : 'border-b border-gray-200'
+  return props.placement === 'bottom'
+    ? 'border-t border-gray-200 dark:border-gray-700'
+    : 'border-b border-gray-200 dark:border-gray-700'
 })
 </script>
 

@@ -7,7 +7,18 @@ import './assets/main.css'
 
 const app = createApp(App)
 
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
+
+// Initialize auth & theme on app start
+import { useAuthStore } from './stores/auth'
+import { useThemeStore } from './stores/theme'
+
+const auth = useAuthStore()
+auth.init()
+
+const themeStore = useThemeStore()
+themeStore.loadForUser()
 
 app.mount('#app')

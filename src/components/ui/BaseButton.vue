@@ -39,9 +39,10 @@ const variantClasses: Record<ButtonVariant, string> = {
   success: 'bg-emerald-500 text-white hover:bg-emerald-600 focus:ring-emerald-200',
   warning: 'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-200',
   danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-200',
-  ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-200',
+  ghost:
+    'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-200 dark:text-gray-300 dark:hover:bg-gray-700',
   outline:
-    'bg-transparent text-primary-500 border border-primary-500 hover:bg-primary-50 focus:ring-primary-200',
+    'bg-transparent text-primary-500 border border-primary-500 hover:bg-primary-50 focus:ring-primary-200 dark:hover:bg-primary-900/20',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {

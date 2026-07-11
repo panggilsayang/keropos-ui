@@ -42,7 +42,10 @@ const sizeClasses: Record<ProgressSize, string> = {
 
 <template>
   <div class="flex items-center gap-2">
-    <div class="flex-1 bg-gray-200 rounded-full overflow-hidden" :class="sizeClasses[size]">
+    <div
+      class="flex-1 bg-gray-200 rounded-full overflow-hidden dark:bg-gray-700"
+      :class="sizeClasses[size]"
+    >
       <div
         class="h-full rounded-full transition-[width] duration-300"
         :class="[
@@ -57,7 +60,10 @@ const sizeClasses: Record<ProgressSize, string> = {
         :aria-valuemax="max"
       />
     </div>
-    <span v-if="showLabel" class="text-xs font-medium text-gray-600 min-w-[2.5rem] text-right">
+    <span
+      v-if="showLabel"
+      class="text-xs font-medium text-gray-600 min-w-[2.5rem] text-right dark:text-gray-400"
+    >
       {{ percentage }}%
     </span>
   </div>

@@ -19,20 +19,22 @@ withDefaults(defineProps<Props>(), {
 const trendColor: Record<StatTrend, string> = {
   up: 'text-emerald-500',
   down: 'text-red-500',
-  neutral: 'text-gray-500',
+  neutral: 'text-gray-500 dark:text-gray-400',
 }
 </script>
 
 <template>
-  <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+  <div
+    class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm dark:bg-gray-800 dark:border-gray-700"
+  >
     <div class="flex justify-between items-start">
       <div>
-        <p class="text-sm text-gray-500 mb-1">{{ title }}</p>
-        <h3 class="text-2xl font-bold text-gray-900">{{ value }}</h3>
+        <p class="text-sm text-gray-500 mb-1 dark:text-gray-400">{{ title }}</p>
+        <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ value }}</h3>
       </div>
       <div
         v-if="icon"
-        class="w-10 h-10 flex items-center justify-center bg-primary-50 rounded-lg text-primary-500"
+        class="w-10 h-10 flex items-center justify-center bg-primary-50 rounded-lg text-primary-500 dark:bg-primary-900/30 dark:text-primary-400"
       >
         <component :is="icon" class="w-5 h-5" />
       </div>
@@ -43,7 +45,7 @@ const trendColor: Record<StatTrend, string> = {
         <span v-else-if="trend === 'down'">↓</span>
         {{ trendValue }}
       </span>
-      <span v-if="subtitle" class="text-gray-500">{{ subtitle }}</span>
+      <span v-if="subtitle" class="text-gray-500 dark:text-gray-400">{{ subtitle }}</span>
     </div>
   </div>
 </template>

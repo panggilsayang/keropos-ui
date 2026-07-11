@@ -191,7 +191,10 @@ function formatRp(n: number) {
           </div>
         </template>
         <template #cell-sku="{ value }">
-          <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono">{{ value }}</code>
+          <code
+            class="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono dark:bg-gray-700 dark:text-gray-300"
+            >{{ value }}</code
+          >
         </template>
         <template #cell-category="{ value }">
           <BaseBadge variant="secondary" size="sm" :pill="false">{{ value }}</BaseBadge>

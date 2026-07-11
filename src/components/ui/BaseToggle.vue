@@ -59,6 +59,8 @@ const thumbTranslate: Record<ToggleSize, string> = {
         :class="[thumbSize[size], modelValue ? thumbTranslate[size] : '']"
       />
     </span>
-    <span v-if="label" class="text-sm text-gray-700 select-none">{{ label }}</span>
+    <span v-if="label" class="text-sm text-gray-700 select-none dark:text-gray-300">{{
+      label
+    }}</span>
   </label>
 </template>

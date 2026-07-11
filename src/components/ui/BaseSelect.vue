@@ -201,10 +201,11 @@ onUnmounted(() => {
 const containerClasses = computed(() => {
   const variants: Record<SelectVariant, string> = {
     default:
-      'border border-gray-300 rounded-md bg-white focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100',
+      'border border-gray-300 rounded-md bg-white focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100 dark:bg-gray-800 dark:border-gray-600 dark:focus-within:ring-primary-900/30',
     filled:
-      'border border-transparent rounded-md bg-gray-100 focus-within:bg-white focus-within:border-primary-500',
-    underlined: 'border-b-2 border-gray-300 rounded-none focus-within:border-primary-500',
+      'border border-transparent rounded-md bg-gray-100 focus-within:bg-white focus-within:border-primary-500 dark:bg-gray-700 dark:focus-within:bg-gray-800',
+    underlined:
+      'border-b-2 border-gray-300 rounded-none focus-within:border-primary-500 dark:border-gray-600',
   }
 
   const sizes: Record<SelectSize, string> = {
@@ -226,7 +227,9 @@ const containerClasses = computed(() => {
 
 <template>
   <div ref="containerRef" class="flex flex-col gap-1">
-    <label v-if="label" class="text-sm font-medium text-gray-700">{{ label }}</label>
+    <label v-if="label" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{
+      label
+    }}</label>
 
     <!-- Trigger -->
     <div ref="triggerRef" :class="containerClasses" @click="open">
@@ -235,11 +238,11 @@ const containerClasses = computed(() => {
         <span
           v-for="opt in selectedOptions"
           :key="opt.value"
-          class="inline-flex items-center gap-1 bg-primary-50 text-primary-700 rounded px-1.5 py-0.5 text-xs font-medium"
+          class="inline-flex items-center gap-1 bg-primary-50 text-primary-700 rounded px-1.5 py-0.5 text-xs font-medium dark:bg-primary-900/30 dark:text-primary-300"
         >
           {{ opt.label }}
           <button
-            class="hover:text-primary-900 cursor-pointer"
+            class="hover:text-primary-900 cursor-pointer dark:hover:text-primary-100"
             @click.stop="removeTag(opt.value)"
             aria-label="Remove"
           >
@@ -249,12 +252,15 @@ const containerClasses = computed(() => {
       </template>
 
       <!-- Single value text -->
-      <span v-if="!multiple && displayText" class="text-sm text-gray-800 truncate">
+      <span
+        v-if="!multiple && displayText"
+        class="text-sm text-gray-800 truncate dark:text-gray-200"
+      >
         {{ displayText }}
       </span>
 
       <!-- Placeholder -->
-      <span v-if="selectedValues.length === 0" class="text-sm text-gray-400">
+      <span v-if="selectedValues.length === 0" class="text-sm text-gray-400 dark:text-gray-500">
         {{ placeholder }}
       </span>
 
@@ -262,7 +268,7 @@ const containerClasses = computed(() => {
         <!-- Clear button -->
         <button
           v-if="clearable && selectedValues.length > 0 && !disabled"
-          class="text-gray-400 hover:text-gray-600 cursor-pointer"
+          class="text-gray-400 hover:text-gray-600 cursor-pointer dark:hover:text-gray-300"
           @click.stop="clear"
           aria-label="Clear"
         >
@@ -290,16 +296,19 @@ const containerClasses = computed(() => {
           v-if="isOpen"
           id="select-dropdown-portal"
           :style="dropdownStyle"
-          class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+          class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden dark:bg-gray-800 dark:border-gray-700"
         >
           <!-- Search input -->
-          <div v-if="searchable" class="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-            <Search class="w-4 h-4 text-gray-400 shrink-0" />
+          <div
+            v-if="searchable"
+            class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700"
+          >
+            <Search class="w-4 h-4 text-gray-400 shrink-0 dark:text-gray-500" />
             <input
               ref="searchInputRef"
               v-model="searchQuery"
               type="text"
-              class="flex-1 text-sm border-none outline-none bg-transparent placeholder:text-gray-400"
+              class="flex-1 text-sm border-none outline-none bg-transparent placeholder:text-gray-400 dark:text-gray-200 dark:placeholder:text-gray-500"
               :placeholder="remote ? 'Type to search...' : 'Search...'"
               @click.stop
             />
@@ -332,8 +341,8 @@ const containerClasses = computed(() => {
               :class="[
                 opt.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
                 isSelected(opt)
-                  ? 'bg-primary-50 text-primary-700'
-                  : 'text-gray-700 hover:bg-gray-50',
+                  ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+                  : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700',
               ]"
               :disabled="opt.disabled"
               @click.stop="toggleOption(opt)"
@@ -342,7 +351,11 @@ const containerClasses = computed(() => {
               <span
                 v-if="multiple"
                 class="w-4 h-4 border rounded flex items-center justify-center shrink-0 transition-colors"
-                :class="isSelected(opt) ? 'bg-primary-500 border-primary-500' : 'border-gray-300'"
+                :class="
+                  isSelected(opt)
+                    ? 'bg-primary-500 border-primary-500'
+                    : 'border-gray-300 dark:border-gray-600'
+                "
               >
                 <svg
                   v-if="isSelected(opt)"
