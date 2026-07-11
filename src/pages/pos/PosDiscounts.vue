@@ -156,7 +156,7 @@ function openCreate() {
       <BaseButton size="sm" :icon="Plus" @click="openCreate">Add Discount</BaseButton>
     </div>
 
-    <BaseCard>
+    <BaseCard flush>
       <BaseTable
         :columns="columns"
         :data="discounts"

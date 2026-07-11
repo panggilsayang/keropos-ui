@@ -96,7 +96,7 @@ function handleAction(item: DropdownItem, row: Record<string, unknown>) {
       >
     </div>
 
-    <BaseCard>
+    <BaseCard flush>
       <BaseTable
         :columns="columns"
         :data="roles"

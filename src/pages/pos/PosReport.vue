@@ -171,7 +171,7 @@ function formatRp(n: number) {
     </BaseCard>
 
     <!-- Transaction List -->
-    <BaseCard>
+    <BaseCard flush>
       <template #header>
         <div class="flex items-center justify-between w-full">
           <h4 class="font-semibold">Transaction History</h4>

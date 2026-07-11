@@ -177,7 +177,7 @@ function formatRp(n: number) {
       <BaseButton size="sm" :icon="Plus" @click="showCreateModal = true">Add Product</BaseButton>
     </div>
 
-    <BaseCard>
+    <BaseCard flush>
       <BaseTable
         :columns="columns"
         :data="products"

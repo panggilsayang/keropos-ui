@@ -10,6 +10,7 @@ import clientsRoutes from './routes/clients'
 import projectsRoutes from './routes/projects'
 import posRoutes from './routes/pos'
 import accountingRoutes from './routes/accounting'
+import invoicesRoutes from './routes/invoices'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,6 +24,7 @@ const router = createRouter({
     ...projectsRoutes,
     ...posRoutes,
     ...accountingRoutes,
+    ...invoicesRoutes,
   ],
 })
 

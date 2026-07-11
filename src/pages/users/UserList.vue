@@ -178,7 +178,7 @@ function getRoleVariant(role: string) {
       </div>
     </div>
 
-    <BaseCard>
+    <BaseCard flush>
       <BaseTable
         :columns="columns"
         :data="users"

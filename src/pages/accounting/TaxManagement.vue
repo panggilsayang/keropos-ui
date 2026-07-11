@@ -205,7 +205,7 @@ function formatRp(n: number) {
       />
     </div>
 
-    <BaseCard>
+    <BaseCard flush>
       <BaseTable
         :columns="columns"
         :data="taxes"

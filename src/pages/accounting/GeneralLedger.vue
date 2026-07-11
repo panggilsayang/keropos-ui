@@ -98,7 +98,7 @@ function formatRp(n: number) {
       <p class="text-gray-500 mt-1">Buku besar — view transactions per account.</p>
     </div>
 
-    <BaseCard>
+    <BaseCard flush>
       <template #header>
         <div class="flex items-center justify-between w-full">
           <h4 class="font-semibold">Account Transactions</h4>

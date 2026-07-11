@@ -281,7 +281,7 @@ function formatRp(n: number) {
       <BaseButton size="sm" :icon="Plus" @click="showCreateModal = true">Add Account</BaseButton>
     </div>
 
-    <BaseCard>
+    <BaseCard flush>
       <BaseTable
         :columns="columns"
         :data="accounts"

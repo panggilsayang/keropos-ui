@@ -160,7 +160,7 @@ function getGroupColor(group: string) {
       <BaseButton size="sm" :icon="Plus" @click="openCreate">Add Permission</BaseButton>
     </div>
 
-    <BaseCard>
+    <BaseCard flush>
       <BaseTable
         :columns="columns"
         :data="permissions"

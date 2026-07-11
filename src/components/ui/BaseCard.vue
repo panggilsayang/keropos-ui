@@ -6,12 +6,14 @@ export type CardVariant = 'default' | 'bordered' | 'elevated' | 'flat'
 interface Props {
   variant?: CardVariant
   padding?: boolean
+  flush?: boolean
   hoverable?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   variant: 'default',
   padding: true,
+  flush: false,
   hoverable: false,
 })
 
@@ -27,6 +29,11 @@ const classes = computed(() => [
   variantClasses[props.variant],
   props.hoverable ? 'hover:shadow-md hover:-translate-y-0.5' : '',
 ])
+
+const bodyClasses = computed(() => {
+  if (props.flush) return ''
+  return props.padding ? 'p-6' : ''
+})
 </script>
 
 <template>
@@ -34,7 +41,7 @@ const classes = computed(() => [
     <div v-if="$slots.header" class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
       <slot name="header" />
     </div>
-    <div :class="padding ? 'p-6' : ''">
+    <div :class="bodyClasses">
       <slot />
     </div>
     <div v-if="$slots.footer" class="px-6 py-4 border-t border-gray-100 dark:border-gray-700">

@@ -41,6 +41,10 @@ import {
   BookText,
   FileSpreadsheet,
   Calculator,
+  Receipt,
+  FilePlus,
+  Clock,
+  AlertOctagon,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -86,6 +90,16 @@ const menuItems: MenuItem[] = [
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },
   { icon: Contact, label: 'Clients', to: '/clients' },
+  {
+    icon: Receipt,
+    label: 'Invoices',
+    children: [
+      { icon: Receipt, label: 'All Invoices', to: '/invoices' },
+      { icon: Clock, label: 'Unpaid', to: '/invoices/unpaid' },
+      { icon: AlertOctagon, label: 'Overdue', to: '/invoices/overdue' },
+      { icon: FilePlus, label: 'Create Invoice', to: '/invoices/create' },
+    ],
+  },
   { icon: Kanban, label: 'Projects', to: '/projects' },
   {
     icon: Users,
@@ -126,7 +140,7 @@ const menuItems: MenuItem[] = [
   { icon: Settings, label: 'Settings', to: '/settings' },
 ]
 
-const openMenus = ref<Set<string>>(new Set(['Components']))
+const openMenus = ref<Set<string>>(new Set())
 
 // Auto-open parent menus based on current route
 function getInitialOpenMenus(): Set<string> {
@@ -136,7 +150,6 @@ function getInitialOpenMenus(): Set<string> {
       set.add(item.label)
     }
   }
-  if (set.size === 0) set.add('Components')
   return set
 }
 openMenus.value = getInitialOpenMenus()

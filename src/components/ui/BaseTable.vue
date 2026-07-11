@@ -112,11 +112,11 @@ function isExpanded(index: number) {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div>
     <!-- Toolbar -->
     <div
       v-if="searchable || $slots.toolbar"
-      class="flex flex-wrap items-center justify-between gap-3"
+      class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700"
     >
       <div v-if="searchable" class="relative">
         <input
@@ -138,16 +138,13 @@ function isExpanded(index: number) {
     </div>
 
     <!-- Table -->
-    <div class="overflow-x-auto rounded-lg">
+    <div class="overflow-x-auto">
       <table class="w-full text-sm">
-        <thead>
+        <thead class="bg-gray-50 dark:bg-gray-800">
           <tr>
             <th
               v-if="expandable"
-              :class="[
-                cellPadding,
-                'w-10 bg-gray-50 border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700',
-              ]"
+              :class="[cellPadding, 'w-10 border-b border-gray-200 dark:border-gray-700']"
             />
             <th
               v-for="col in columns"
@@ -155,7 +152,7 @@ function isExpanded(index: number) {
               :style="{ width: col.width }"
               :class="[
                 cellPadding,
-                'font-semibold text-gray-600 uppercase text-[0.6875rem] tracking-wide border-b border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400',
+                'font-semibold text-gray-600 uppercase text-[0.6875rem] tracking-wide border-b border-gray-200 dark:border-gray-700 dark:text-gray-400',
                 col.align === 'center'
                   ? 'text-center'
                   : col.align === 'right'

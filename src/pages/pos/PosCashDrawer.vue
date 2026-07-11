@@ -155,7 +155,7 @@ function formatRp(n: number) {
     </div>
 
     <!-- Transactions -->
-    <BaseCard>
+    <BaseCard flush>
       <template #header>
         <div class="flex items-center justify-between w-full">
           <h4 class="font-semibold">Transactions Today</h4>
