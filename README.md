@@ -4,9 +4,10 @@ Modern, full-featured admin dashboard built with Vue 3, TypeScript, and Tailwind
 
 ## ✨ Highlights
 
-- **20+ UI Components** — Buttons, Cards, Tables, Modals, Selects, Date Pickers, Pagination, and more. All built from scratch, no external UI library.
+- **25+ UI Components** — Buttons, Cards, Tables, Modals, Selects, Date Pickers, Pagination, Breadcrumb, File Upload, WYSIWYG Editor, and more. All built from scratch (editor uses Tiptap), no external UI library.
 - **Dark Mode** — Full light/dark theme support across every component. Per-user preference saved to localStorage.
 - **Theming** — 8 primary color options (Indigo, Blue, Emerald, Rose, Amber, Teal, Violet, Slate) switchable from the top bar. Per-user preference persisted.
+- **Categorized Sidebar** — Components organized into categories (Form, Display, Navigation, Layout) with nested collapsible submenus.
 - **Secure Storage** — Sensitive data (auth tokens, user info) encrypted with AES-GCM via Web Crypto API before storing to localStorage.
 - **HTTP Helper** — Pre-configured Axios instance with token injection, error normalization, multi-backend support, and convenience methods (get, post, upload, download).
 - **Authentication** — Login, Register, Forgot Password pages with async route guards. Mock auth ready for backend integration.
@@ -16,7 +17,7 @@ Modern, full-featured admin dashboard built with Vue 3, TypeScript, and Tailwind
 - **User Management** — Users, Roles, Permissions with full CRUD modals.
 - **Client Management** — Client list, detail, create, edit with type badges and avatars.
 - **Project Management** — Kanban board with drag-and-drop, task detail views.
-- **Collapsible Sidebar** — Icon-only mode with flyout popover submenus on hover/click.
+- **Collapsible Sidebar** — Icon-only mode with flyout popover submenus on hover/click. Nested category navigation for component library.
 
 ## 🧱 Component Library
 
@@ -41,6 +42,20 @@ All components live in `src/components/ui/` with full TypeScript props, variants
 | Avatar      | xs, sm, md, lg, xl + circle, rounded, square                  |
 | Dropdown    | 7 color variants + teleported positioning                     |
 | Charts      | Line, Bar, Doughnut (Chart.js)                                |
+| Breadcrumb  | chevron, slash, dot separators + sm, md, lg sizes + icons     |
+| File Upload | dropzone, input, compact + progress, cancel, retry, validate  |
+| Editor      | minimal, default, full (Tiptap WYSIWYG) + sm, md, lg sizes    |
+
+### Component Categories
+
+Components in the sidebar are organized into categories:
+
+| Category   | Components                                                               |
+| ---------- | ------------------------------------------------------------------------ |
+| Form       | Input, Select, Toggle, Date Picker, File Upload, Editor                  |
+| Display    | Card, Badge, Avatar, Table, Alert, Progress, Stat Card, Skeleton, Charts |
+| Navigation | Button, Tabs, Pagination, Breadcrumb                                     |
+| Layout     | Modal, Grid                                                              |
 
 ## 🛠 Tech Stack
 
@@ -51,6 +66,7 @@ All components live in `src/components/ui/` with full TypeScript props, variants
 - **Vue Router 5** — File-based route modules with async navigation guards
 - **Axios** — HTTP client with interceptors, multi-service config
 - **Chart.js + vue-chartjs** — Data visualization
+- **Tiptap** — Headless WYSIWYG editor (ProseMirror-based)
 - **Lucide Icons** — 1000+ clean icons
 - **Vite 8** — Lightning-fast dev server and build
 
