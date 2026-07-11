@@ -28,12 +28,12 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // Initialize auth state from localStorage on first navigation
-  if (!auth.isAuthenticated) {
-    auth.init()
+  // Wait for auth to be ready (async decrypt from secure storage)
+  if (!auth.ready) {
+    await auth.init()
   }
 
   const isGuestRoute = to.meta.guest === true

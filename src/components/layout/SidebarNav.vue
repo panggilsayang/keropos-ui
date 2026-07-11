@@ -143,6 +143,10 @@ const menuItems: MenuItem[] = [
 ]
 
 const openMenus = ref<Set<string>>(new Set())
+const popoverMenu = ref<string | null>(null)
+const popoverTop = ref(0)
+const popoverLeft = ref(0)
+let hideTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Auto-open parent menus based on current route
 function getInitialOpenMenus(): Set<string> {
@@ -164,6 +168,35 @@ function toggleMenu(label: string) {
   }
 }
 
+function showPopover(label: string, event: MouseEvent) {
+  if (hideTimeout) {
+    clearTimeout(hideTimeout)
+    hideTimeout = null
+  }
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  popoverTop.value = rect.top
+  popoverLeft.value = rect.right + 8
+  popoverMenu.value = label
+}
+
+function hidePopover() {
+  hideTimeout = setTimeout(() => {
+    popoverMenu.value = null
+  }, 100)
+}
+
+function keepPopover() {
+  if (hideTimeout) {
+    clearTimeout(hideTimeout)
+    hideTimeout = null
+  }
+}
+
+function getPopoverItem(): MenuItem | undefined {
+  return menuItems.find((m) => m.label === popoverMenu.value)
+}
+
 function isActive(to: string) {
   return route.path === to
 }
@@ -178,11 +211,11 @@ function isParentActive(item: MenuItem) {
 
 <template>
   <aside
-    class="fixed top-0 left-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-[width] duration-200 z-50 overflow-hidden dark:bg-gray-800 dark:border-gray-700"
+    class="fixed top-0 left-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-[width] duration-200 z-50 dark:bg-gray-800 dark:border-gray-700"
     :class="collapsed ? 'w-[4.5rem]' : 'w-64'"
   >
     <div
-      class="flex items-center gap-3 px-4 h-14 shrink-0 border-b border-gray-100 dark:border-gray-700"
+      class="flex items-center gap-3 px-4 h-14 shrink-0 border-b border-gray-100 overflow-hidden dark:border-gray-700"
     >
       <div
         class="w-8 h-8 bg-primary-500 text-white rounded-lg flex items-center justify-center font-bold text-sm shrink-0"
@@ -196,7 +229,7 @@ function isParentActive(item: MenuItem) {
       >
     </div>
 
-    <nav class="flex-1 p-3 flex flex-col gap-0.5 overflow-y-auto">
+    <nav class="flex-1 p-3 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden">
       <template v-for="item in menuItems" :key="item.label">
         <!-- Regular link (no children) -->
         <router-link
@@ -214,7 +247,7 @@ function isParentActive(item: MenuItem) {
         </router-link>
 
         <!-- Dropdown parent (has children) -->
-        <div v-else>
+        <div v-else class="relative">
           <button
             class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer"
             :class="
@@ -222,7 +255,9 @@ function isParentActive(item: MenuItem) {
                 ? 'text-primary-600 bg-primary-50 dark:text-primary-400 dark:bg-primary-900/30'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
             "
-            @click="toggleMenu(item.label)"
+            @click="collapsed ? showPopover(item.label, $event) : toggleMenu(item.label)"
+            @mouseenter="collapsed ? showPopover(item.label, $event) : undefined"
+            @mouseleave="collapsed ? hidePopover() : undefined"
           >
             <component :is="item.icon" class="w-5 h-5 shrink-0" />
             <span v-if="!collapsed" class="flex-1 text-left">{{ item.label }}</span>
@@ -233,7 +268,7 @@ function isParentActive(item: MenuItem) {
             />
           </button>
 
-          <!-- Submenu -->
+          <!-- Submenu expanded (not collapsed) -->
           <div
             v-if="!collapsed"
             class="overflow-hidden transition-all duration-200"
@@ -260,4 +295,39 @@ function isParentActive(item: MenuItem) {
       </template>
     </nav>
   </aside>
+
+  <!-- Popover submenu (teleported to body to escape overflow clipping) -->
+  <Teleport to="body">
+    <div
+      v-if="collapsed && popoverMenu && getPopoverItem()"
+      class="fixed z-[9999] min-w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1.5 dark:bg-gray-800 dark:border-gray-700"
+      :style="{ top: popoverTop + 'px', left: popoverLeft + 'px' }"
+      @mouseenter="keepPopover()"
+      @mouseleave="hidePopover()"
+    >
+      <div class="px-3 py-1.5 border-b border-gray-100 dark:border-gray-700">
+        <span
+          class="text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-gray-400"
+          >{{ getPopoverItem()!.label }}</span
+        >
+      </div>
+      <div class="py-1">
+        <router-link
+          v-for="child in getPopoverItem()!.children"
+          :key="child.to"
+          :to="child.to"
+          class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium transition-all duration-150 whitespace-nowrap no-underline hover:no-underline"
+          :class="
+            isActive(child.to)
+              ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+          "
+          @click="hidePopover()"
+        >
+          <component :is="child.icon" class="w-3.5 h-3.5 shrink-0" />
+          <span>{{ child.label }}</span>
+        </router-link>
+      </div>
+    </div>
+  </Teleport>
 </template>

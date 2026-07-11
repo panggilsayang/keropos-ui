@@ -17,6 +17,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value)
 
   async function init() {
+    if (ready.value) return
     const savedToken = await secureGet('auth_token')
     const savedUser = await secureGet('auth_user')
     if (savedToken && savedUser) {
