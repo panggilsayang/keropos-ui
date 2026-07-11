@@ -3,7 +3,7 @@ import { BaseAvatar, BaseCard } from '@/components/ui'
 </script>
 
 <template>
-  <div class="space-y-8 max-w-4xl">
+  <div class="space-y-8">
     <div>
       <h1 class="text-2xl font-bold text-gray-900">Avatar</h1>
       <p class="text-gray-500 mt-1">

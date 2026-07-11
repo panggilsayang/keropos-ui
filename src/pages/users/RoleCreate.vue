@@ -97,7 +97,7 @@ function handleSave() {
 </script>
 
 <template>
-  <div class="max-w-3xl space-y-6">
+  <div class="space-y-6">
     <div class="flex items-center gap-3">
       <BaseButton
         variant="ghost"

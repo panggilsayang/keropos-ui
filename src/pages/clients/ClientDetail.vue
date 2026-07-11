@@ -149,7 +149,7 @@ const client = clientsData[clientId] || clientsData[1]
 </script>
 
 <template>
-  <div class="max-w-4xl space-y-6">
+  <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <BaseButton variant="ghost" size="sm" :icon="ArrowLeft" @click="router.push('/clients')" />

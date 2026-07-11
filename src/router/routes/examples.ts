@@ -86,6 +86,11 @@ const routes: RouteRecordRaw[] = [
     name: 'example-datepicker',
     component: () => import('@/pages/examples/DatePickerExample.vue'),
   },
+  {
+    path: '/examples/grid',
+    name: 'example-grid',
+    component: () => import('@/pages/examples/GridExample.vue'),
+  },
 ]
 
 export default routes

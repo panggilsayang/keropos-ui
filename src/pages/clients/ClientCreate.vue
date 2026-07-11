@@ -94,7 +94,7 @@ function handleSave() {
 </script>
 
 <template>
-  <div class="max-w-4xl space-y-6">
+  <div class="space-y-6">
     <div class="flex items-center gap-3">
       <BaseButton variant="ghost" size="sm" :icon="ArrowLeft" @click="router.push('/clients')" />
       <div>

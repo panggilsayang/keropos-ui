@@ -114,6 +114,12 @@ const components = [
     icon: Calendar,
     description: 'Date, time, datetime, and range picker with custom format output.',
   },
+  {
+    label: 'Grid System',
+    to: '/examples/grid',
+    icon: BarChart3,
+    description: '12-column grid, responsive breakpoints, auto-fit, gap, offset, and row span.',
+  },
 ]
 </script>
 

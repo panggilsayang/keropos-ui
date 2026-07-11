@@ -68,6 +68,7 @@ const menuItems: MenuItem[] = [
       { icon: Bone, label: 'Skeleton', to: '/examples/skeleton' },
       { icon: Layers, label: 'Tabs', to: '/examples/tabs' },
       { icon: Calendar, label: 'Date Picker', to: '/examples/datepicker' },
+      { icon: LayoutDashboard, label: 'Grid', to: '/examples/grid' },
     ],
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },

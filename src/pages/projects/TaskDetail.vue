@@ -157,7 +157,7 @@ function getPriorityColor(priority: string) {
 </script>
 
 <template>
-  <div class="max-w-4xl space-y-6">
+  <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-start justify-between">
       <div class="flex items-start gap-3">

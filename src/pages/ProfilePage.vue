@@ -23,7 +23,7 @@ function handleSave() {
 </script>
 
 <template>
-  <div class="max-w-3xl space-y-6">
+  <div class="space-y-6">
     <div>
       <h1 class="text-2xl font-bold text-gray-900">My Profile</h1>
       <p class="text-gray-500 mt-1">Manage your account information.</p>
