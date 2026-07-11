@@ -35,6 +35,12 @@ import {
   Wallet,
   ReceiptText,
   BadgePercent,
+  BookOpen,
+  Landmark,
+  ScrollText,
+  BookText,
+  FileSpreadsheet,
+  Calculator,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -105,6 +111,18 @@ const menuItems: MenuItem[] = [
     ],
   },
   { icon: FileText, label: 'Reports', to: '/reports' },
+  {
+    icon: BookOpen,
+    label: 'Accounting',
+    children: [
+      { icon: LayoutDashboard, label: 'Dashboard', to: '/accounting' },
+      { icon: Landmark, label: 'Chart of Accounts', to: '/accounting/coa' },
+      { icon: ScrollText, label: 'Journal Entries', to: '/accounting/journals' },
+      { icon: BookText, label: 'General Ledger', to: '/accounting/ledger' },
+      { icon: FileSpreadsheet, label: 'Financial Statements', to: '/accounting/statements' },
+      { icon: Calculator, label: 'Tax', to: '/accounting/tax' },
+    ],
+  },
   { icon: Settings, label: 'Settings', to: '/settings' },
 ]
 
