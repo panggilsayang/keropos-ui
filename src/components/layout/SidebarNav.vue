@@ -23,6 +23,8 @@ import {
   Activity,
   Gauge,
   Bone,
+  Shield,
+  Key,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -64,13 +66,34 @@ const menuItems: MenuItem[] = [
     ],
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },
-  { icon: Users, label: 'Users', to: '/users' },
+  {
+    icon: Users,
+    label: 'User Management',
+    children: [
+      { icon: Users, label: 'Users', to: '/users' },
+      { icon: Shield, label: 'Roles', to: '/users/roles' },
+      { icon: Key, label: 'Permissions', to: '/users/permissions' },
+    ],
+  },
   { icon: ShoppingCart, label: 'Orders', to: '/orders' },
   { icon: FileText, label: 'Reports', to: '/reports' },
   { icon: Settings, label: 'Settings', to: '/settings' },
 ]
 
 const openMenus = ref<Set<string>>(new Set(['Components']))
+
+// Auto-open parent menus based on current route
+function getInitialOpenMenus(): Set<string> {
+  const set = new Set<string>()
+  for (const item of menuItems) {
+    if (item.children && item.children.some((child) => route.path === child.to)) {
+      set.add(item.label)
+    }
+  }
+  if (set.size === 0) set.add('Components')
+  return set
+}
+openMenus.value = getInitialOpenMenus()
 
 function toggleMenu(label: string) {
   if (openMenus.value.has(label)) {
