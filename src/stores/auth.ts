@@ -41,10 +41,12 @@ export const useAuthStore = defineStore('auth', () => {
       avatar: undefined,
     }
     const mockToken = 'mock-jwt-token-' + Date.now()
+    const mockRefreshToken = 'mock-refresh-token-' + Date.now()
 
     user.value = mockUser
     token.value = mockToken
     await secureSet('auth_token', mockToken)
+    await secureSet('refresh_token', mockRefreshToken)
     await secureSet('auth_user', JSON.stringify(mockUser))
   }
 
@@ -57,10 +59,12 @@ export const useAuthStore = defineStore('auth', () => {
       avatar: undefined,
     }
     const mockToken = 'mock-jwt-token-' + Date.now()
+    const mockRefreshToken = 'mock-refresh-token-' + Date.now()
 
     user.value = mockUser
     token.value = mockToken
     await secureSet('auth_token', mockToken)
+    await secureSet('refresh_token', mockRefreshToken)
     await secureSet('auth_user', JSON.stringify(mockUser))
   }
 
@@ -71,6 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function clearStorage() {
     secureRemove('auth_token')
+    secureRemove('refresh_token')
     secureRemove('auth_user')
   }
 

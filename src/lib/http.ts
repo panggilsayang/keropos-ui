@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
 import router from '@/router'
-import { secureGet, secureRemove } from '@/lib/crypto'
+import { secureGet, secureRemove, secureSet } from '@/lib/crypto'
 import { getServiceConfig, type ServiceName } from '@/lib/config'
 
 // ---------------------------------------------------------------------------
@@ -25,6 +25,80 @@ export interface ApiError {
   message: string
   errors?: Record<string, string[]>
   status: number
+}
+
+// ---------------------------------------------------------------------------
+// Silent Refresh logic
+// ---------------------------------------------------------------------------
+
+let isRefreshing = false
+let refreshSubscribers: Array<(token: string) => void> = []
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb)
+}
+
+function onTokenRefreshed(newToken: string) {
+  refreshSubscribers.forEach((cb) => cb(newToken))
+  refreshSubscribers = []
+}
+
+function onRefreshFailed() {
+  refreshSubscribers = []
+}
+
+/**
+ * Attempt silent refresh using stored refresh_token.
+ * Returns new access token on success, null on failure.
+ */
+async function attemptSilentRefresh(): Promise<string | null> {
+  const refreshToken = await secureGet('refresh_token')
+  if (!refreshToken) return null
+
+  try {
+    const config = getServiceConfig('auth')
+    const response = await axios.post<{ data: { token: string; refresh_token?: string } }>(
+      `${config.baseURL}/refresh`,
+      { refresh_token: refreshToken },
+      {
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        timeout: config.timeout ?? 15_000,
+      },
+    )
+
+    const { token, refresh_token: newRefreshToken } = response.data.data
+
+    // Persist new tokens
+    await secureSet('auth_token', token)
+    if (newRefreshToken) {
+      await secureSet('refresh_token', newRefreshToken)
+    }
+
+    return token
+  } catch {
+    return null
+  }
+}
+
+function forceLogout() {
+  secureRemove('auth_token')
+  secureRemove('refresh_token')
+  secureRemove('auth_user')
+  router.push({ name: 'login' })
+}
+
+/**
+ * Show error toast notification via the toast store.
+ * Uses a registered callback to avoid circular dependency / Pinia init issues.
+ */
+let toastCallback: ((message: string) => void) | null = null
+
+export function registerToastHandler(handler: (message: string) => void) {
+  toastCallback = handler
+}
+
+function showErrorToast(apiError: ApiError) {
+  toastCallback?.(apiError.message)
 }
 
 // ---------------------------------------------------------------------------
@@ -72,6 +146,7 @@ function createInstance(service: ServiceName): AxiosInstance {
           message: 'Koneksi gagal. Periksa jaringan internet kamu.',
           status: 0,
         }
+        showErrorToast(apiError)
         return Promise.reject(apiError)
       }
 
@@ -83,11 +158,52 @@ function createInstance(service: ServiceName): AxiosInstance {
         status,
       }
 
-      // 401 Unauthorized — force logout & redirect
+      // 401 Unauthorized — try silent refresh first, logout only if refresh fails
       if (status === 401) {
-        secureRemove('auth_token')
-        secureRemove('auth_user')
-        router.push({ name: 'login' })
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
+        // Don't retry refresh requests themselves or already-retried requests
+        if (originalRequest._retry || originalRequest.url?.includes('/refresh')) {
+          forceLogout()
+          return Promise.reject(apiError)
+        }
+
+        if (!isRefreshing) {
+          isRefreshing = true
+          originalRequest._retry = true
+
+          const newToken = await attemptSilentRefresh()
+
+          if (newToken) {
+            isRefreshing = false
+            onTokenRefreshed(newToken)
+
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${newToken}`
+            return instance(originalRequest)
+          } else {
+            isRefreshing = false
+            onRefreshFailed()
+            forceLogout()
+            return Promise.reject(apiError)
+          }
+        }
+
+        // Another refresh is already in progress — queue this request
+        return new Promise((resolve, reject) => {
+          subscribeTokenRefresh((newToken: string) => {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`
+            resolve(instance(originalRequest))
+          })
+          // If refresh fails while we're waiting, the forceLogout above handles navigation
+          // but we still need to reject this queued promise
+          const checkInterval = setInterval(() => {
+            if (!isRefreshing && refreshSubscribers.length === 0) {
+              clearInterval(checkInterval)
+              reject(apiError)
+            }
+          }, 50)
+        })
       }
 
       // 403 Forbidden
@@ -108,6 +224,11 @@ function createInstance(service: ServiceName): AxiosInstance {
       // 500+ Server error
       if (status >= 500) {
         apiError.message = 'Terjadi kesalahan di server. Coba lagi nanti.'
+      }
+
+      // Show toast for all non-silent errors (skip 401 which is handled above, skip 422 validation)
+      if (status !== 401 && status !== 422) {
+        showErrorToast(apiError)
       }
 
       return Promise.reject(apiError)

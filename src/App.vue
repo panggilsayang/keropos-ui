@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import DashboardLayout from '@/components/layout/DashboardLayout.vue'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
 
 const route = useRoute()
 
@@ -13,6 +14,7 @@ const isGuestRoute = computed(() => route.meta.guest === true)
     <RouterView />
   </DashboardLayout>
   <RouterView v-else />
+  <ToastContainer />
 </template>
 
 <style scoped></style>
