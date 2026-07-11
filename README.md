@@ -6,13 +6,17 @@ Modern, full-featured admin dashboard built with Vue 3, TypeScript, and Tailwind
 
 - **20+ UI Components** — Buttons, Cards, Tables, Modals, Selects, Date Pickers, Pagination, and more. All built from scratch, no external UI library.
 - **Dark Mode** — Full light/dark theme support across every component. Per-user preference saved to localStorage.
-- **Authentication** — Login, Register, Forgot Password pages with route guards. Mock auth ready for backend integration.
+- **Theming** — 8 primary color options (Indigo, Blue, Emerald, Rose, Amber, Teal, Violet, Slate) switchable from the top bar. Per-user preference persisted.
+- **Secure Storage** — Sensitive data (auth tokens, user info) encrypted with AES-GCM via Web Crypto API before storing to localStorage.
+- **HTTP Helper** — Pre-configured Axios instance with token injection, error normalization, multi-backend support, and convenience methods (get, post, upload, download).
+- **Authentication** — Login, Register, Forgot Password pages with async route guards. Mock auth ready for backend integration.
 - **Point of Sale** — Complete POS terminal with product grid, favorites, inline discounts, multi-payment method support (Cash, Card, E-Wallet), and pagination.
 - **Invoice Management** — CRUD invoices with line items, tax calculation, status tracking, and filtered views (unpaid, overdue).
 - **Accounting** — Chart of Accounts, Journal Entries, General Ledger, Financial Statements, Tax Management.
 - **User Management** — Users, Roles, Permissions with full CRUD modals.
 - **Client Management** — Client list, detail, create, edit with type badges and avatars.
 - **Project Management** — Kanban board with drag-and-drop, task detail views.
+- **Collapsible Sidebar** — Icon-only mode with flyout popover submenus on hover/click.
 
 ## 🧱 Component Library
 
@@ -42,9 +46,10 @@ All components live in `src/components/ui/` with full TypeScript props, variants
 
 - **Vue 3.5** — Composition API, `<script setup>`
 - **TypeScript 6** — Full type safety
-- **Tailwind CSS 4** — Utility-first with custom theme tokens
+- **Tailwind CSS 4** — Utility-first with custom theme tokens via CSS variables
 - **Pinia** — State management (auth, theme)
-- **Vue Router 5** — File-based route modules with navigation guards
+- **Vue Router 5** — File-based route modules with async navigation guards
+- **Axios** — HTTP client with interceptors, multi-service config
 - **Chart.js + vue-chartjs** — Data visualization
 - **Lucide Icons** — 1000+ clean icons
 - **Vite 8** — Lightning-fast dev server and build
@@ -53,11 +58,15 @@ All components live in `src/components/ui/` with full TypeScript props, variants
 
 ```
 src/
-├── assets/          # Global CSS (Tailwind config, dark mode)
+├── assets/          # Global CSS (Tailwind config, dark mode, color themes)
 ├── components/
 │   ├── ui/          # Reusable UI component library
 │   ├── charts/      # Chart wrappers (Line, Bar, Doughnut)
 │   └── layout/      # DashboardLayout, SidebarNav, TopBar
+├── lib/
+│   ├── config.ts    # Multi-backend API configuration
+│   ├── crypto.ts    # Secure storage (AES-GCM encrypt/decrypt)
+│   └── http.ts      # Axios instance factory with interceptors
 ├── pages/
 │   ├── auth/        # Login, Register, Forgot Password
 │   ├── accounting/  # Chart of Accounts, Journals, Ledger, Statements, Tax
@@ -89,22 +98,83 @@ npm run preview
 
 ## 🔐 Authentication
 
-Mock auth is enabled — any email/password combination works. After login, all dashboard routes are protected. Theme preference is saved per-user (by email) and persists across sessions.
+Mock auth is enabled — any email/password combination works. After login, all dashboard routes are protected. Auth tokens are encrypted before being stored in localStorage using AES-GCM (Web Crypto API).
 
 **Default flow:**
 
 1. Visit any page → redirected to `/login`
 2. Enter any email + password → lands on dashboard
-3. Dark/light mode toggle in top nav → saved per user
-4. Logout → returns to login, theme preference retained for next login
+3. Refresh page → session persists (async decrypt on init)
+4. Logout → encrypted tokens cleared, returns to login
 
-## 🌗 Dark Mode
+## 🌐 HTTP Helper
+
+Located in `src/lib/http.ts`. Pre-configured for backend integration:
+
+- **Auto token injection** — Bearer token from encrypted storage on every request
+- **Multi-backend support** — Configure multiple services in `src/lib/config.ts`
+- **Error normalization** — Consistent `ApiError` object (message, errors, status)
+- **Auto redirect on 401** — Clear tokens + redirect to login
+- **Common status handling** — 403, 419 (CSRF), 422 (validation), 429 (rate limit), 500+
+- **Convenience methods** — `get`, `post`, `put`, `patch`, `del`, `upload`, `download`
+
+```ts
+import { get, post, upload } from '@/lib/http'
+import { useHttp } from '@/lib/http'
+
+// Default (main) service
+const { data } = await get<Product[]>('/products')
+
+// Different backend service
+const paymentApi = useHttp('payment')
+await paymentApi.post('/charge', { amount: 50000 })
+```
+
+Adding a new backend service:
+
+```ts
+// src/lib/config.ts
+const configs = {
+  main: { baseURL: '/api', timeout: 30_000 },
+  payment: { baseURL: 'https://payment.example.com/v1', timeout: 60_000 },
+}
+```
+
+## 🎨 Theming
+
+### Dark / Light Mode
 
 Toggle via the moon/sun icon in the top navigation bar. The theme:
 
 - Respects system preference on first visit
 - Persists per-user to localStorage
-- Applies globally via CSS class strategy (no per-component overhead)
+- Applies globally via CSS class strategy
+
+### Primary Color
+
+Click the palette icon in the top bar to switch between 8 color schemes:
+
+| Color   | Preview |
+| ------- | ------- |
+| Indigo  | Default |
+| Blue    | Cool    |
+| Emerald | Fresh   |
+| Rose    | Warm    |
+| Amber   | Golden  |
+| Teal    | Calm    |
+| Violet  | Bold    |
+| Slate   | Neutral |
+
+Colors are implemented via CSS custom properties in `src/assets/main.css`. Tailwind's `primary-*` utilities automatically follow the selected theme. Preference is persisted per-user.
+
+## 🔒 Secure Storage
+
+Sensitive data (tokens, user info) is never stored as plain text in localStorage. The `src/lib/crypto.ts` module provides:
+
+- **AES-GCM encryption** via Web Crypto API
+- **PBKDF2 key derivation** (100k iterations + random salt per write)
+- **Tamper detection** — corrupted data is auto-cleared
+- **Simple API** — `secureSet(key, value)`, `secureGet(key)`, `secureRemove(key)`
 
 ## 📄 License
 
