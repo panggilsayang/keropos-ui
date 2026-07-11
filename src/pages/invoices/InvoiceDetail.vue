@@ -34,7 +34,7 @@ const subtotal = computed(() =>
   invoice.value.items.reduce((sum, item) => sum + item.qty * item.price, 0),
 )
 const tax = computed(() => subtotal.value * (invoice.value.taxRate / 100))
-const total = computed(() => subtotal.value + tax)
+const total = computed(() => subtotal.value + tax.value)
 
 const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'secondary' | 'info'> = {
   paid: 'success',

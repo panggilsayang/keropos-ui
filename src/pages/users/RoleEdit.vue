@@ -84,7 +84,7 @@ const rolesData: Record<number, { name: string; description: string; permissions
 }
 
 const roleId = Number(route.params.id)
-const roleData = rolesData[roleId] || rolesData[1]
+const roleData = (rolesData[roleId] ?? rolesData[1])!
 
 const formName = ref(roleData.name)
 const formDescription = ref(roleData.description)

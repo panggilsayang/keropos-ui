@@ -81,7 +81,7 @@ function formatRp(n: number) {
             <BaseButton
               variant="ghost"
               size="sm"
-              @click="router.push({ name: 'invoice-detail', params: { id: row.id } })"
+              @click="router.push({ name: 'invoice-detail', params: { id: String(row.id) } })"
             >
               <Eye class="w-4 h-4" />
             </BaseButton>

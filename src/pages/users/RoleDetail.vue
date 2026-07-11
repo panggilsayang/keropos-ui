@@ -95,7 +95,7 @@ const rolesData: Record<
 }
 
 const roleId = Number(route.params.id)
-const roleData = rolesData[roleId] || rolesData[1]
+const roleData = (rolesData[roleId] ?? rolesData[1])!
 
 const permissionGroups = [
   { group: 'Users', permissions: ['users.create', 'users.read', 'users.update', 'users.delete'] },
@@ -118,7 +118,7 @@ const permissionGroups = [
 function getGroupPermissions(group: (typeof permissionGroups)[number]) {
   return group.permissions.map((p) => ({
     key: p,
-    label: p.split('.')[1].charAt(0).toUpperCase() + p.split('.')[1].slice(1),
+    label: p.split('.')[1]!.charAt(0).toUpperCase() + p.split('.')[1]!.slice(1),
     active: roleData.permissions.includes(p),
   }))
 }
