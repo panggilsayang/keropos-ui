@@ -28,6 +28,13 @@ import {
   Contact,
   Kanban,
   Calendar,
+  Store,
+  Monitor,
+  Package,
+  UsersRound,
+  Wallet,
+  ReceiptText,
+  BadgePercent,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -84,6 +91,19 @@ const menuItems: MenuItem[] = [
     ],
   },
   { icon: ShoppingCart, label: 'Orders', to: '/orders' },
+  {
+    icon: Store,
+    label: 'Point of Sales',
+    children: [
+      { icon: LayoutDashboard, label: 'POS Dashboard', to: '/pos' },
+      { icon: Monitor, label: 'POS Terminal', to: '/pos/terminal' },
+      { icon: Package, label: 'Stock', to: '/pos/stock' },
+      { icon: UsersRound, label: 'Customers', to: '/pos/customers' },
+      { icon: Wallet, label: 'Cash Drawer', to: '/pos/cash-drawer' },
+      { icon: BadgePercent, label: 'Discounts', to: '/pos/discounts' },
+      { icon: ReceiptText, label: 'Reports', to: '/pos/reports' },
+    ],
+  },
   { icon: FileText, label: 'Reports', to: '/reports' },
   { icon: Settings, label: 'Settings', to: '/settings' },
 ]

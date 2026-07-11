@@ -6,6 +6,7 @@ import accountRoutes from './routes/account'
 import usersRoutes from './routes/users'
 import clientsRoutes from './routes/clients'
 import projectsRoutes from './routes/projects'
+import posRoutes from './routes/pos'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,6 +17,7 @@ const router = createRouter({
     ...usersRoutes,
     ...clientsRoutes,
     ...projectsRoutes,
+    ...posRoutes,
   ],
 })
 
