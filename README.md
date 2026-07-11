@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/banner.png" alt="Purdia">
+</p>
+
 <h1 align="center">Purdia</h1>
 
 <p align="center">
