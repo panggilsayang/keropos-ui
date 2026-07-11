@@ -27,6 +27,7 @@ import {
   Key,
   Contact,
   Kanban,
+  Calendar,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -66,6 +67,7 @@ const menuItems: MenuItem[] = [
       { icon: BarChart3, label: 'Charts', to: '/examples/charts' },
       { icon: Bone, label: 'Skeleton', to: '/examples/skeleton' },
       { icon: Layers, label: 'Tabs', to: '/examples/tabs' },
+      { icon: Calendar, label: 'Date Picker', to: '/examples/datepicker' },
     ],
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },

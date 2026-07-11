@@ -14,6 +14,7 @@ import {
   Activity,
   Gauge,
   Bone,
+  Calendar,
 } from '@lucide/vue'
 
 const components = [
@@ -106,6 +107,12 @@ const components = [
     to: '/examples/tabs',
     icon: Layers,
     description: 'Tab navigation with variants, placements (top, bottom, left, right), and sizes.',
+  },
+  {
+    label: 'Date Picker',
+    to: '/examples/datepicker',
+    icon: Calendar,
+    description: 'Date, time, datetime, and range picker with custom format output.',
   },
 ]
 </script>
