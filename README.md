@@ -1,3 +1,17 @@
+<h1 align="center">Purdia</h1>
+
+<p align="center">
+Modern Vue 3 Admin Dashboard built with TypeScript & Tailwind CSS 4.
+</p>
+
+<p align="center">
+<img src="https://img.shields.io/github/license/anggagewor/purdia">
+<img src="https://img.shields.io/github/stars/anggagewor/purdia">
+<img src="https://img.shields.io/github/issues/anggagewor/purdia">
+<img src="https://img.shields.io/badge/Vue-3.5-42b883">
+<img src="https://img.shields.io/badge/Tailwind-v4-38bdf8">
+</p>
+
 # Purdia
 
 Modern, full-featured admin dashboard built with Vue 3, TypeScript, and Tailwind CSS 4. Designed for business applications that need a polished UI out of the box — from point-of-sale systems to accounting modules.
