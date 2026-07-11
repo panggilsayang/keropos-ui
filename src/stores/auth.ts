@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { secureGet, secureSet, secureRemove } from '@/lib/crypto'
 
 export interface User {
   id: number
@@ -11,16 +12,23 @@ export interface User {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
+  const ready = ref(false)
 
   const isAuthenticated = computed(() => !!token.value)
 
-  function init() {
-    const savedToken = localStorage.getItem('auth_token')
-    const savedUser = localStorage.getItem('auth_user')
+  async function init() {
+    const savedToken = await secureGet('auth_token')
+    const savedUser = await secureGet('auth_user')
     if (savedToken && savedUser) {
       token.value = savedToken
-      user.value = JSON.parse(savedUser)
+      try {
+        user.value = JSON.parse(savedUser)
+      } catch {
+        // corrupted user data — clear everything
+        await clearStorage()
+      }
     }
+    ready.value = true
   }
 
   async function login(email: string, _password: string) {
@@ -35,8 +43,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     user.value = mockUser
     token.value = mockToken
-    localStorage.setItem('auth_token', mockToken)
-    localStorage.setItem('auth_user', JSON.stringify(mockUser))
+    await secureSet('auth_token', mockToken)
+    await secureSet('auth_user', JSON.stringify(mockUser))
   }
 
   async function register(name: string, email: string, _password: string) {
@@ -51,8 +59,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     user.value = mockUser
     token.value = mockToken
-    localStorage.setItem('auth_token', mockToken)
-    localStorage.setItem('auth_user', JSON.stringify(mockUser))
+    await secureSet('auth_token', mockToken)
+    await secureSet('auth_user', JSON.stringify(mockUser))
   }
 
   async function forgotPassword(_email: string) {
@@ -60,12 +68,16 @@ export const useAuthStore = defineStore('auth', () => {
     return { message: 'Link reset password telah dikirim ke email Anda.' }
   }
 
-  function logout() {
-    user.value = null
-    token.value = null
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
+  async function clearStorage() {
+    secureRemove('auth_token')
+    secureRemove('auth_user')
   }
 
-  return { user, token, isAuthenticated, init, login, register, forgotPassword, logout }
+  async function logout() {
+    user.value = null
+    token.value = null
+    await clearStorage()
+  }
+
+  return { user, token, isAuthenticated, ready, init, login, register, forgotPassword, logout }
 })

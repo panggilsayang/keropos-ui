@@ -16,7 +16,7 @@ import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
 
 const auth = useAuthStore()
-auth.init()
+await auth.init()
 
 const themeStore = useThemeStore()
 themeStore.loadForUser()

@@ -109,9 +109,14 @@ function setCategory(cat: string) {
 }
 
 // Customer
-const customerType = ref<'walkin' | 'member'>('walkin')
+const customerType = ref<string | number>('walkin')
 const customerName = ref('')
 const memberSearch = ref<string | number>('')
+
+const customerTypeOptions: SelectOption[] = [
+  { label: 'Walk-in', value: 'walkin' },
+  { label: 'Member', value: 'member' },
+]
 
 // Discount global
 const globalDiscount = ref(0)
@@ -356,31 +361,15 @@ function formatRp(n: number) {
           <h3 class="font-semibold text-gray-900 dark:text-gray-100">Current Order</h3>
           <span class="text-xs text-gray-400 dark:text-gray-500">Cashier: Angga</span>
         </div>
-        <!-- Customer -->
-        <div class="flex gap-2">
-          <button
-            class="flex-1 py-1.5 text-xs font-medium rounded-md text-center cursor-pointer transition-colors"
-            :class="
-              customerType === 'walkin'
-                ? 'bg-primary-500 text-white'
-                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-            "
-            @click="customerType = 'walkin'"
-          >
-            Walk-in
-          </button>
-          <button
-            class="flex-1 py-1.5 text-xs font-medium rounded-md text-center cursor-pointer transition-colors"
-            :class="
-              customerType === 'member'
-                ? 'bg-primary-500 text-white'
-                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-            "
-            @click="customerType = 'member'"
-          >
-            Member
-          </button>
-        </div>
+        <!-- Customer Type -->
+        <BaseSelect
+          v-model="customerType"
+          :options="customerTypeOptions"
+          :searchable="false"
+          :clearable="false"
+          size="sm"
+          placeholder="Customer type"
+        />
         <div v-if="customerType === 'member'" class="mt-2">
           <BaseSelect
             v-model="memberSearch"
