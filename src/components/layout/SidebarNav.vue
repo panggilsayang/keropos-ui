@@ -47,14 +47,31 @@ import {
   Clock,
   AlertOctagon,
   Upload,
+  FormInput,
+  PanelTop,
+  Navigation,
+  Puzzle,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
+
+interface MenuChild {
+  icon: VueComponent
+  label: string
+  to: string
+}
+
+interface MenuCategory {
+  icon: VueComponent
+  label: string
+  children: MenuChild[]
+}
 
 interface MenuItem {
   icon: VueComponent
   label: string
   to?: string
-  children?: { icon: VueComponent; label: string; to: string }[]
+  children?: MenuChild[]
+  categories?: MenuCategory[]
 }
 
 interface Props {
@@ -70,27 +87,52 @@ const menuItems: MenuItem[] = [
   {
     icon: Component,
     label: 'Components',
-    children: [
-      { icon: RectangleHorizontal, label: 'Button', to: '/examples/button' },
-      { icon: CreditCard, label: 'Card', to: '/examples/card' },
-      { icon: Tag, label: 'Badge', to: '/examples/badge' },
-      { icon: TextCursorInput, label: 'Input', to: '/examples/input' },
-      { icon: ListFilter, label: 'Select', to: '/examples/select' },
-      { icon: ToggleLeft, label: 'Toggle', to: '/examples/toggle' },
-      { icon: CircleUser, label: 'Avatar', to: '/examples/avatar' },
-      { icon: Table, label: 'Table', to: '/examples/table' },
-      { icon: Layers, label: 'Modal', to: '/examples/modal' },
-      { icon: AlertCircle, label: 'Alert', to: '/examples/alert' },
-      { icon: Activity, label: 'Progress', to: '/examples/progress' },
-      { icon: Gauge, label: 'Stat Card', to: '/examples/stat-card' },
-      { icon: BarChart3, label: 'Charts', to: '/examples/charts' },
-      { icon: Bone, label: 'Skeleton', to: '/examples/skeleton' },
-      { icon: Layers, label: 'Tabs', to: '/examples/tabs' },
-      { icon: Calendar, label: 'Date Picker', to: '/examples/datepicker' },
-      { icon: LayoutDashboard, label: 'Grid', to: '/examples/grid' },
-      { icon: ChevronRight, label: 'Pagination', to: '/examples/pagination' },
-      { icon: ChevronRight, label: 'Breadcrumb', to: '/examples/breadcrumb' },
-      { icon: Upload, label: 'File Upload', to: '/examples/file-upload' },
+    categories: [
+      {
+        icon: FormInput,
+        label: 'Form',
+        children: [
+          { icon: TextCursorInput, label: 'Input', to: '/examples/input' },
+          { icon: ListFilter, label: 'Select', to: '/examples/select' },
+          { icon: ToggleLeft, label: 'Toggle', to: '/examples/toggle' },
+          { icon: Calendar, label: 'Date Picker', to: '/examples/datepicker' },
+          { icon: Upload, label: 'File Upload', to: '/examples/file-upload' },
+          { icon: FileText, label: 'Editor', to: '/examples/editor' },
+        ],
+      },
+      {
+        icon: PanelTop,
+        label: 'Display',
+        children: [
+          { icon: CreditCard, label: 'Card', to: '/examples/card' },
+          { icon: Tag, label: 'Badge', to: '/examples/badge' },
+          { icon: CircleUser, label: 'Avatar', to: '/examples/avatar' },
+          { icon: Table, label: 'Table', to: '/examples/table' },
+          { icon: AlertCircle, label: 'Alert', to: '/examples/alert' },
+          { icon: Activity, label: 'Progress', to: '/examples/progress' },
+          { icon: Gauge, label: 'Stat Card', to: '/examples/stat-card' },
+          { icon: Bone, label: 'Skeleton', to: '/examples/skeleton' },
+          { icon: BarChart3, label: 'Charts', to: '/examples/charts' },
+        ],
+      },
+      {
+        icon: Navigation,
+        label: 'Navigation',
+        children: [
+          { icon: RectangleHorizontal, label: 'Button', to: '/examples/button' },
+          { icon: Layers, label: 'Tabs', to: '/examples/tabs' },
+          { icon: ChevronRight, label: 'Pagination', to: '/examples/pagination' },
+          { icon: ChevronRight, label: 'Breadcrumb', to: '/examples/breadcrumb' },
+        ],
+      },
+      {
+        icon: Puzzle,
+        label: 'Layout',
+        children: [
+          { icon: Layers, label: 'Modal', to: '/examples/modal' },
+          { icon: LayoutDashboard, label: 'Grid', to: '/examples/grid' },
+        ],
+      },
     ],
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },
@@ -158,6 +200,14 @@ function getInitialOpenMenus(): Set<string> {
     if (item.children && item.children.some((child) => route.path === child.to)) {
       set.add(item.label)
     }
+    if (item.categories) {
+      for (const cat of item.categories) {
+        if (cat.children.some((child) => route.path === child.to)) {
+          set.add(item.label)
+          set.add(`${item.label}:${cat.label}`)
+        }
+      }
+    }
   }
   return set
 }
@@ -208,7 +258,14 @@ function isParentActive(item: MenuItem) {
   if (item.children) {
     return item.children.some((child) => route.path === child.to)
   }
+  if (item.categories) {
+    return item.categories.some((cat) => cat.children.some((child) => route.path === child.to))
+  }
   return false
+}
+
+function isCategoryActive(category: MenuCategory) {
+  return category.children.some((child) => route.path === child.to)
 }
 </script>
 
@@ -236,7 +293,7 @@ function isParentActive(item: MenuItem) {
       <template v-for="item in menuItems" :key="item.label">
         <!-- Regular link (no children) -->
         <router-link
-          v-if="!item.children"
+          v-if="!item.children && !item.categories"
           :to="item.to!"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-gray-600 text-sm font-medium transition-all duration-150 whitespace-nowrap no-underline hover:no-underline dark:text-gray-400"
           :class="
@@ -249,7 +306,88 @@ function isParentActive(item: MenuItem) {
           <span v-if="!collapsed">{{ item.label }}</span>
         </router-link>
 
-        <!-- Dropdown parent (has children) -->
+        <!-- Dropdown with categories (Components) -->
+        <div v-else-if="item.categories" class="relative">
+          <button
+            class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer"
+            :class="
+              isParentActive(item)
+                ? 'text-primary-600 bg-primary-50 dark:text-primary-400 dark:bg-primary-900/30'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+            "
+            @click="collapsed ? showPopover(item.label, $event) : toggleMenu(item.label)"
+            @mouseenter="collapsed ? showPopover(item.label, $event) : undefined"
+            @mouseleave="collapsed ? hidePopover() : undefined"
+          >
+            <component :is="item.icon" class="w-5 h-5 shrink-0" />
+            <span v-if="!collapsed" class="flex-1 text-left">{{ item.label }}</span>
+            <ChevronDown
+              v-if="!collapsed"
+              class="w-4 h-4 shrink-0 transition-transform duration-200"
+              :class="openMenus.has(item.label) ? 'rotate-180' : ''"
+            />
+          </button>
+
+          <!-- Categories expanded (not collapsed) -->
+          <div
+            v-if="!collapsed"
+            class="overflow-hidden transition-all duration-200"
+            :class="openMenus.has(item.label) ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'"
+          >
+            <div class="ml-4 pl-3 border-l border-gray-200 mt-1 space-y-1 dark:border-gray-700">
+              <!-- Category -->
+              <div v-for="category in item.categories" :key="category.label">
+                <button
+                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer"
+                  :class="
+                    isCategoryActive(category)
+                      ? 'text-primary-600 dark:text-primary-400'
+                      : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                  "
+                  @click="toggleMenu(`${item.label}:${category.label}`)"
+                >
+                  <component :is="category.icon" class="w-3.5 h-3.5 shrink-0" />
+                  <span class="flex-1 text-left">{{ category.label }}</span>
+                  <ChevronDown
+                    class="w-3 h-3 shrink-0 transition-transform duration-200"
+                    :class="openMenus.has(`${item.label}:${category.label}`) ? 'rotate-180' : ''"
+                  />
+                </button>
+
+                <!-- Category children -->
+                <div
+                  class="overflow-hidden transition-all duration-200"
+                  :class="
+                    openMenus.has(`${item.label}:${category.label}`)
+                      ? 'max-h-[400px] opacity-100'
+                      : 'max-h-0 opacity-0'
+                  "
+                >
+                  <div
+                    class="ml-3 pl-2.5 border-l border-gray-100 mt-0.5 space-y-0.5 dark:border-gray-700"
+                  >
+                    <router-link
+                      v-for="child in category.children"
+                      :key="child.to"
+                      :to="child.to"
+                      class="flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium transition-all duration-150 whitespace-nowrap no-underline hover:no-underline"
+                      :class="
+                        isActive(child.to)
+                          ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
+                          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+                      "
+                    >
+                      <component :is="child.icon" class="w-3 h-3 shrink-0" />
+                      <span>{{ child.label }}</span>
+                    </router-link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dropdown parent (has children, no categories) -->
         <div v-else class="relative">
           <button
             class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer"
@@ -315,21 +453,49 @@ function isParentActive(item: MenuItem) {
         >
       </div>
       <div class="py-1">
-        <router-link
-          v-for="child in getPopoverItem()!.children"
-          :key="child.to"
-          :to="child.to"
-          class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium transition-all duration-150 whitespace-nowrap no-underline hover:no-underline"
-          :class="
-            isActive(child.to)
-              ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
-              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
-          "
-          @click="hidePopover()"
-        >
-          <component :is="child.icon" class="w-3.5 h-3.5 shrink-0" />
-          <span>{{ child.label }}</span>
-        </router-link>
+        <!-- Popover for items with categories -->
+        <template v-if="getPopoverItem()!.categories">
+          <div v-for="category in getPopoverItem()!.categories" :key="category.label" class="mb-1">
+            <div
+              class="px-3 py-1 text-[0.625rem] font-semibold text-gray-400 uppercase tracking-wider"
+            >
+              {{ category.label }}
+            </div>
+            <router-link
+              v-for="child in category.children"
+              :key="child.to"
+              :to="child.to"
+              class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium transition-all duration-150 whitespace-nowrap no-underline hover:no-underline"
+              :class="
+                isActive(child.to)
+                  ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+              "
+              @click="hidePopover()"
+            >
+              <component :is="child.icon" class="w-3.5 h-3.5 shrink-0" />
+              <span>{{ child.label }}</span>
+            </router-link>
+          </div>
+        </template>
+        <!-- Popover for items with flat children -->
+        <template v-else>
+          <router-link
+            v-for="child in getPopoverItem()!.children"
+            :key="child.to"
+            :to="child.to"
+            class="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium transition-all duration-150 whitespace-nowrap no-underline hover:no-underline"
+            :class="
+              isActive(child.to)
+                ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+            "
+            @click="hidePopover()"
+          >
+            <component :is="child.icon" class="w-3.5 h-3.5 shrink-0" />
+            <span>{{ child.label }}</span>
+          </router-link>
+        </template>
       </div>
     </div>
   </Teleport>

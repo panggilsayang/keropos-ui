@@ -106,6 +106,11 @@ const routes: RouteRecordRaw[] = [
     name: 'example-file-upload',
     component: () => import('@/pages/examples/FileUploadExample.vue'),
   },
+  {
+    path: '/examples/editor',
+    name: 'example-editor',
+    component: () => import('@/pages/examples/EditorExample.vue'),
+  },
 ]
 
 export default routes

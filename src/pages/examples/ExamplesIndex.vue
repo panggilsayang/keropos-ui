@@ -134,6 +134,13 @@ const components = [
     icon: Upload,
     description: 'Upload file dengan dropzone, input, progress bar, cancel, dan validasi.',
   },
+  {
+    label: 'Editor (WYSIWYG)',
+    to: '/examples/editor',
+    icon: TextCursorInput,
+    description:
+      'Rich text editor dengan toolbar, formatting, link, image, code block, dan lainnya.',
+  },
 ]
 </script>
 
