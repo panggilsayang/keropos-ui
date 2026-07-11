@@ -101,6 +101,12 @@ const components = [
     icon: Bone,
     description: 'Loading placeholders for all components and layouts.',
   },
+  {
+    label: 'Tabs',
+    to: '/examples/tabs',
+    icon: Layers,
+    description: 'Tab navigation with variants, placements (top, bottom, left, right), and sizes.',
+  },
 ]
 </script>
 

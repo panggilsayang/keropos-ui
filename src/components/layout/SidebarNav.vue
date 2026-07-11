@@ -63,6 +63,7 @@ const menuItems: MenuItem[] = [
       { icon: Gauge, label: 'Stat Card', to: '/examples/stat-card' },
       { icon: BarChart3, label: 'Charts', to: '/examples/charts' },
       { icon: Bone, label: 'Skeleton', to: '/examples/skeleton' },
+      { icon: Layers, label: 'Tabs', to: '/examples/tabs' },
     ],
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },
