@@ -13,6 +13,40 @@ const APP_SECRET = 'purdia-client-secret-v1' // static passphrase for key deriva
 const ITERATIONS = 100_000
 
 // ---------------------------------------------------------------------------
+// In-memory cache — avoid re-decrypting on every request
+// ---------------------------------------------------------------------------
+
+interface CacheEntry {
+  value: string
+  expiresAt: number
+}
+
+const memCache = new Map<string, CacheEntry>()
+const DEFAULT_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function cacheGet(key: string): string | null {
+  const entry = memCache.get(key)
+  if (!entry) return null
+  if (Date.now() > entry.expiresAt) {
+    memCache.delete(key)
+    return null
+  }
+  return entry.value
+}
+
+function cacheSet(key: string, value: string, ttl = DEFAULT_CACHE_TTL): void {
+  memCache.set(key, { value, expiresAt: Date.now() + ttl })
+}
+
+function cacheDelete(key: string): void {
+  memCache.delete(key)
+}
+
+function cacheClear(): void {
+  memCache.clear()
+}
+
+// ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
@@ -62,6 +96,7 @@ async function deriveKey(salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
 
 /**
  * Encrypt & store a value in localStorage.
+ * Also updates the in-memory cache.
  */
 export async function secureSet(key: string, value: string): Promise<void> {
   const salt = crypto.getRandomValues(new Uint8Array(16))
@@ -78,13 +113,23 @@ export async function secureSet(key: string, value: string): Promise<void> {
   ].join('.')
 
   localStorage.setItem(STORAGE_PREFIX + key, payload)
+
+  // Update in-memory cache so subsequent reads don't need to decrypt
+  cacheSet(key, value)
 }
 
 /**
  * Retrieve & decrypt a value from localStorage.
  * Returns null if key doesn't exist or decryption fails.
+ *
+ * Uses in-memory cache to avoid expensive PBKDF2 + AES-GCM decrypt
+ * on every call (e.g. request interceptor yang dipanggil tiap request).
  */
 export async function secureGet(key: string): Promise<string | null> {
+  // Check in-memory cache first — O(1), no crypto overhead
+  const cached = cacheGet(key)
+  if (cached !== null) return cached
+
   const raw = localStorage.getItem(STORAGE_PREFIX + key)
   if (!raw) return null
 
@@ -99,7 +144,12 @@ export async function secureGet(key: string): Promise<string | null> {
 
     const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, data)
 
-    return decode(decrypted)
+    const value = decode(decrypted)
+
+    // Cache the decrypted value in memory
+    cacheSet(key, value)
+
+    return value
   } catch {
     // Decryption failed — corrupted or tampered data
     secureRemove(key)
@@ -109,13 +159,16 @@ export async function secureGet(key: string): Promise<string | null> {
 
 /**
  * Remove an encrypted value from localStorage.
+ * Also evicts from in-memory cache.
  */
 export function secureRemove(key: string): void {
   localStorage.removeItem(STORAGE_PREFIX + key)
+  cacheDelete(key)
 }
 
 /**
  * Remove all purdia-prefixed items from localStorage.
+ * Also clears the in-memory cache.
  */
 export function secureClearAll(): void {
   const keys: string[] = []
@@ -124,4 +177,5 @@ export function secureClearAll(): void {
     if (k?.startsWith(STORAGE_PREFIX)) keys.push(k)
   }
   keys.forEach((k) => localStorage.removeItem(k))
+  cacheClear()
 }

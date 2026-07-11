@@ -192,9 +192,55 @@ export function upload<T = unknown>(
 
 /**
  * Download file as Blob.
+ *
+ * Handles error responses properly — if server returns 4xx/5xx,
+ * the blob is actually JSON error. We detect this and parse it
+ * so the error interceptor gets a proper error message.
  */
 export function download(url: string, config?: AxiosRequestConfig) {
-  return http.get<Blob>(url, { ...config, responseType: 'blob' })
+  return http
+    .get<Blob>(url, { ...config, responseType: 'blob' })
+    .then((response) => response)
+    .catch(async (error) => {
+      // Kalau error dari interceptor (sudah ApiError), langsung reject
+      if (error && typeof error === 'object' && 'status' in error && 'message' in error) {
+        return Promise.reject(error)
+      }
+
+      // Kalau AxiosError dan response-nya blob, coba parse ke JSON
+      if (error instanceof AxiosError && error.response?.data instanceof Blob) {
+        const blob = error.response.data
+        const status = error.response.status
+
+        // Cek apakah blob isinya JSON (error response dari server)
+        if (blob.type === 'application/json' || blob.type.includes('json')) {
+          try {
+            const text = await blob.text()
+            const parsed = JSON.parse(text) as {
+              message?: string
+              errors?: Record<string, string[]>
+            }
+            const apiError: ApiError = {
+              message: parsed.message ?? getDefaultMessage(status),
+              errors: parsed.errors,
+              status,
+            }
+            return Promise.reject(apiError)
+          } catch {
+            // JSON parse gagal, fallback ke default message
+          }
+        }
+
+        // Blob bukan JSON — pakai default error message
+        const apiError: ApiError = {
+          message: getDefaultMessage(status),
+          status,
+        }
+        return Promise.reject(apiError)
+      }
+
+      return Promise.reject(error)
+    })
 }
 
 export { http }
