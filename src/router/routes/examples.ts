@@ -96,6 +96,16 @@ const routes: RouteRecordRaw[] = [
     name: 'example-pagination',
     component: () => import('@/pages/examples/PaginationExample.vue'),
   },
+  {
+    path: '/examples/breadcrumb',
+    name: 'example-breadcrumb',
+    component: () => import('@/pages/examples/BreadcrumbExample.vue'),
+  },
+  {
+    path: '/examples/file-upload',
+    name: 'example-file-upload',
+    component: () => import('@/pages/examples/FileUploadExample.vue'),
+  },
 ]
 
 export default routes

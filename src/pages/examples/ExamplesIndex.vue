@@ -15,6 +15,8 @@ import {
   Gauge,
   Bone,
   Calendar,
+  Navigation,
+  Upload,
 } from '@lucide/vue'
 
 const components = [
@@ -119,6 +121,18 @@ const components = [
     to: '/examples/grid',
     icon: BarChart3,
     description: '12-column grid, responsive breakpoints, auto-fit, gap, offset, and row span.',
+  },
+  {
+    label: 'Breadcrumb',
+    to: '/examples/breadcrumb',
+    icon: Navigation,
+    description: 'Navigation breadcrumb dengan separator, icons, dan sizes.',
+  },
+  {
+    label: 'File Upload',
+    to: '/examples/file-upload',
+    icon: Upload,
+    description: 'Upload file dengan dropzone, input, progress bar, cancel, dan validasi.',
   },
 ]
 </script>

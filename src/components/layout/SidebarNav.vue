@@ -46,6 +46,7 @@ import {
   FilePlus,
   Clock,
   AlertOctagon,
+  Upload,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -88,6 +89,8 @@ const menuItems: MenuItem[] = [
       { icon: Calendar, label: 'Date Picker', to: '/examples/datepicker' },
       { icon: LayoutDashboard, label: 'Grid', to: '/examples/grid' },
       { icon: ChevronRight, label: 'Pagination', to: '/examples/pagination' },
+      { icon: ChevronRight, label: 'Breadcrumb', to: '/examples/breadcrumb' },
+      { icon: Upload, label: 'File Upload', to: '/examples/file-upload' },
     ],
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },
