@@ -30,13 +30,55 @@ Modern Vue 3 Admin Dashboard built with TypeScript & Tailwind CSS 4.
 - 🛡️ **Authentication** — Login, Register, Forgot Password with encrypted token storage
 - 📱 **Collapsible Sidebar** — Icon-only mode with flyout popover submenus
 
-## 🖥️ Demo
+## 🖥️ Demo & Visuals
 
-> Mock auth enabled — any email/password combination works.
+> **Mock Auth Enabled:** Any email/password combination works.
 
-```bash
-npm install && npm run dev
-```
+### 📊 Dashboards Preview
+
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>Main Dashboard</b><br/>
+      <img src="./docs/dashboard.png" alt="Main Dashboard" width="100%"/>
+    </td>
+    <td width="50%" align="center">
+      <b>CRM Dashboard</b><br/>
+      <img src="./docs/crm_dashboard.png" alt="CRM Dashboard" width="100%"/>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>HRM Dashboard</b><br/>
+      <img src="./docs/hrm_dashboard.png" alt="HRM Dashboard" width="100%"/>
+    </td>
+    <td width="50%" align="center">
+      <b>POS Terminal & Dashboard</b><br/>
+      <img src="./docs/Pos_dashboard.png" alt="POS Dashboard" width="100%"/>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>Accounting & Ledger</b><br/>
+      <img src="./docs/Accounting.png" alt="Accounting Dashboard" width="100%"/>
+    </td>
+    <td width="50%" align="center">
+      <b>UI Component Library Index</b><br/>
+      <img src="./docs/component_Index.png" alt="Component Index" width="100%"/>
+    </td>
+  </tr>
+</table>
+
+---
+
+### ⚡ Quick Start
+
+````bash
+# Install dependencies
+npm install
+
+# Run local development server
+npm run dev
 
 ## 📦 Modules
 
@@ -186,7 +228,7 @@ npm run build
 
 # Preview production build
 npm run preview
-```
+````
 
 ## 📁 Project Structure
 
