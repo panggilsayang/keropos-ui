@@ -16,71 +16,105 @@ Modern Vue 3 Admin Dashboard built with TypeScript & Tailwind CSS 4.
 <img src="https://img.shields.io/badge/Tailwind-v4-38bdf8">
 </p>
 
-# Purdia
+---
 
-Modern, full-featured admin dashboard built with Vue 3, TypeScript, and Tailwind CSS 4. Designed for business applications that need a polished UI out of the box — from point-of-sale systems to accounting modules.
+## ✨ Features
 
-## ✨ Highlights
+- 🧩 **25+ UI Components** — Built from scratch, no external UI library
+- 🌙 **Dark Mode** — Full light/dark theme with per-user persistence
+- 🎨 **8 Color Themes** — Switchable primary colors (Indigo, Blue, Emerald, Rose, Amber, Teal, Violet, Slate)
+- 🔐 **Secure Storage** — AES-GCM encrypted localStorage via Web Crypto API
+- 🌐 **HTTP Helper** — Axios with auto token injection, silent refresh, multi-backend support
+- 🔔 **Toast Notifications** — Global system with auto-dismiss, progress bar, API error integration
+- 📦 **Composables** — `useApi`, `usePagination`, `useToast` for clean page logic
+- 🛡️ **Authentication** — Login, Register, Forgot Password with encrypted token storage
+- 📱 **Collapsible Sidebar** — Icon-only mode with flyout popover submenus
 
-- **25+ UI Components** — Buttons, Cards, Tables, Modals, Selects, Date Pickers, Pagination, Breadcrumb, File Upload, WYSIWYG Editor, Toast Notifications, and more. All built from scratch (editor uses Tiptap), no external UI library.
-- **Dark Mode** — Full light/dark theme support across every component. Per-user preference saved to localStorage.
-- **Theming** — 8 primary color options (Indigo, Blue, Emerald, Rose, Amber, Teal, Violet, Slate) switchable from the top bar. Per-user preference persisted.
-- **Categorized Sidebar** — Components organized into categories (Form, Display, Navigation, Layout) with nested collapsible submenus.
-- **Secure Storage** — Sensitive data (auth tokens, user info) encrypted with AES-GCM via Web Crypto API before storing to localStorage.
-- **HTTP Helper** — Pre-configured Axios instance with token injection, silent token refresh, error normalization, multi-backend support, and convenience methods (get, post, upload, download).
-- **Toast Notifications** — Global toast system with auto-dismiss, progress bar, variants (success/error/warning/info). API errors automatically surface as toasts.
-- **Composables** — Reusable `useApi` (loading/error/data state), `usePagination` (search, sort, filters, auto-refetch), `useToast` (programmatic notifications).
-- **Authentication** — Login, Register, Forgot Password pages with async route guards. Silent token refresh on 401 before falling back to logout. Mock auth ready for backend integration.
-- **Point of Sale** — Complete POS terminal with product grid, favorites, inline discounts, multi-payment method support (Cash, Card, E-Wallet), and pagination.
-- **Invoice Management** — CRUD invoices with line items, tax calculation, status tracking, and filtered views (unpaid, overdue).
-- **Accounting** — Chart of Accounts, Journal Entries, General Ledger, Financial Statements, Tax Management.
-- **User Management** — Users, Roles, Permissions with full CRUD modals.
-- **CRM** — Full Customer Relationship Management: Leads, Companies, Contacts, Deals (pipeline stages), Activities, Follow Ups, Tasks, Quotations (with line items), Calendar, and Reports with charts.
-- **HRM** — Complete Human Resource Management: Employees, Departments, Positions, Attendance, Leave, Payroll (payslip detail), Recruitment (applicants tracking), Performance Reviews, Training, Assets, Documents, Expenses, Announcements, Calendar, and Reports.
-- **Client Management** — Client list, detail, create, edit with type badges and avatars.
-- **Project Management** — Kanban board with drag-and-drop, task detail views.
-- **Collapsible Sidebar** — Icon-only mode with flyout popover submenus on hover/click. Nested category navigation for component library.
+## 🖥️ Demo
 
-## 📊 CRM Module
+> Mock auth enabled — any email/password combination works.
 
-Full-featured Customer Relationship Management system located in `src/pages/crm/`.
+```bash
+npm install && npm run dev
+```
 
-| Sub-module | Features                                                                                    |
-| ---------- | ------------------------------------------------------------------------------------------- |
-| Dashboard  | Pipeline stats, recent deals, upcoming activities                                           |
-| Leads      | CRUD with source tracking, status workflow (new → contacted → qualified → proposal → lost)  |
-| Companies  | CRUD with industry, employee count, revenue tracking                                        |
-| Contacts   | CRUD with company association, position, avatar                                             |
-| Deals      | CRUD with pipeline stages, probability, value, close date                                   |
-| Activities | Log calls, meetings, emails linked to contacts & deals                                      |
-| Follow Ups | Priority-based follow-up scheduler with due dates                                           |
-| Tasks      | Task management with assignee, priority, status (todo → in-progress → completed)            |
-| Quotations | Line-item quotations with auto-calculated totals, status (draft → sent → accepted/rejected) |
-| Calendar   | Monthly calendar view with CRM events                                                       |
-| Reports    | Revenue charts, pipeline by stage, lead sources, top performers                             |
+## 📦 Modules
 
-## 👥 HRM Module
+### 📊 CRM — Customer Relationship Management
 
-Complete Human Resource Management system located in `src/pages/hrm/`.
+| Sub-module | Description                                                                       |
+| ---------- | --------------------------------------------------------------------------------- |
+| Dashboard  | Pipeline stats, recent deals, upcoming activities                                 |
+| Leads      | Source tracking, status workflow (new → contacted → qualified → proposal → lost)  |
+| Companies  | Industry, employee count, revenue tracking                                        |
+| Contacts   | Company association, position, avatar                                             |
+| Deals      | Pipeline stages, probability, value, close date                                   |
+| Activities | Log calls, meetings, emails linked to contacts & deals                            |
+| Follow Ups | Priority-based scheduler with due dates                                           |
+| Tasks      | Assignee, priority, status (todo → in-progress → completed)                       |
+| Quotations | Line items with auto-calculated totals, status (draft → sent → accepted/rejected) |
+| Calendar   | Monthly calendar view with CRM events                                             |
+| Reports    | Revenue charts, pipeline by stage, lead sources, top performers                   |
 
-| Sub-module    | Features                                                                        |
-| ------------- | ------------------------------------------------------------------------------- |
-| Dashboard     | Employee stats, recent leave requests, birthdays, announcements                 |
-| Employees     | Full CRUD with tabbed form (personal, employment, bank & salary)                |
-| Departments   | CRUD with head, budget, employee count                                          |
-| Positions     | CRUD with level (junior → manager), salary range                                |
-| Attendance    | Daily clock-in/out tracking with status (present, late, absent, half-day)       |
-| Leave         | Leave requests with type (annual, sick, personal, maternity), approval workflow |
-| Payroll       | Payslip generation with earnings/deductions breakdown, IDR currency             |
-| Recruitment   | Job postings with applicant tracking (screening → interview → offered/rejected) |
-| Performance   | Quarterly reviews with rating, goals, feedback                                  |
-| Training      | Training programs with participants, schedule, completion status                |
-| Assets        | Company asset tracking (laptops, monitors, etc.) with condition & assignment    |
-| Documents     | Employee document storage (contracts, certificates, IDs) with expiry tracking   |
-| Expenses      | Expense claims with category, receipt, approval workflow                        |
-| Announcements | Company-wide announcements with type, priority, expiry                          |
-| Calendar      | Monthly calendar with birthdays, leave, training, holidays                      |
-| Reports       | Attendance rate, headcount, leave by type, department budget analytics          |
+### 👥 HRM — Human Resource Management
+
+| Sub-module    | Description                                                                 |
+| ------------- | --------------------------------------------------------------------------- |
+| Dashboard     | Employee stats, recent leave requests, birthdays, announcements             |
+| Employees     | Tabbed form (personal, employment, bank & salary)                           |
+| Departments   | Head, budget, employee count                                                |
+| Positions     | Level (junior → manager), salary range                                      |
+| Attendance    | Daily clock-in/out, status (present, late, absent, half-day)                |
+| Leave         | Type (annual, sick, personal, maternity), approval workflow                 |
+| Payroll       | Payslip with earnings/deductions breakdown, IDR currency                    |
+| Recruitment   | Job postings, applicant tracking (screening → interview → offered/rejected) |
+| Performance   | Quarterly reviews with rating, goals, feedback                              |
+| Training      | Programs with participants, schedule, completion status                     |
+| Assets        | Company asset tracking (laptops, monitors) with condition & assignment      |
+| Documents     | Employee documents (contracts, certificates, IDs) with expiry tracking      |
+| Expenses      | Claims with category, receipt, approval workflow                            |
+| Announcements | Company-wide with type, priority, expiry                                    |
+| Calendar      | Monthly calendar with birthdays, leave, training, holidays                  |
+| Reports       | Attendance rate, headcount, leave by type, department budget analytics      |
+
+### 🏪 Point of Sale
+
+| Sub-module   | Description                                                                     |
+| ------------ | ------------------------------------------------------------------------------- |
+| Dashboard    | Sales overview and stats                                                        |
+| POS Terminal | Product grid, favorites, inline discounts, multi-payment (Cash, Card, E-Wallet) |
+| Stock        | Product inventory management                                                    |
+| Customers    | Customer database                                                               |
+| Cash Drawer  | Cash management                                                                 |
+| Discounts    | Discount & promo management                                                     |
+| Reports      | Sales reports and analytics                                                     |
+
+### 📒 Accounting
+
+| Sub-module           | Description                     |
+| -------------------- | ------------------------------- |
+| Dashboard            | Financial overview              |
+| Chart of Accounts    | Account tree management         |
+| Journal Entries      | Debit/credit journal entries    |
+| General Ledger       | Account transaction history     |
+| Financial Statements | Balance sheet, income statement |
+| Tax Management       | Tax calculation and reporting   |
+
+### 🧾 Invoices
+
+| Sub-module   | Description                                   |
+| ------------ | --------------------------------------------- |
+| All Invoices | Full CRUD with line items and tax calculation |
+| Unpaid       | Filtered view for pending payments            |
+| Overdue      | Filtered view for overdue invoices            |
+
+### 📋 Other Modules
+
+| Module          | Description                                         |
+| --------------- | --------------------------------------------------- |
+| Clients         | Client CRUD with company/individual types, contacts |
+| Projects        | Kanban board with drag-and-drop, task detail        |
+| User Management | Users, Roles, Permissions with CRUD                 |
 
 ## 🧱 Component Library
 
@@ -110,9 +144,7 @@ All components live in `src/components/ui/` with full TypeScript props, variants
 | Editor      | minimal, default, full (Tiptap WYSIWYG) + sm, md, lg sizes    |
 | Toast       | success, error, warning, info + auto-dismiss, progress bar    |
 
-### Component Categories
-
-Components in the sidebar are organized into categories:
+**Sidebar Categories:**
 
 | Category   | Components                                                               |
 | ---------- | ------------------------------------------------------------------------ |
@@ -123,52 +155,26 @@ Components in the sidebar are organized into categories:
 
 ## 🛠 Tech Stack
 
-- **Vue 3.5** — Composition API, `<script setup>`
-- **TypeScript 6** — Full type safety
-- **Tailwind CSS 4** — Utility-first with custom theme tokens via CSS variables
-- **Pinia** — State management (auth, theme, toast)
-- **Vue Router 5** — File-based route modules with async navigation guards
-- **Axios** — HTTP client with interceptors, multi-service config
-- **Chart.js + vue-chartjs** — Data visualization
-- **Tiptap** — Headless WYSIWYG editor (ProseMirror-based)
-- **Lucide Icons** — 1000+ clean icons
-- **Vite 8** — Lightning-fast dev server and build
+| Technology   | Version | Purpose                                         |
+| ------------ | ------- | ----------------------------------------------- |
+| Vue          | 3.5     | Composition API, `<script setup>`               |
+| TypeScript   | 6       | Full type safety                                |
+| Tailwind CSS | 4       | Utility-first styling with CSS variable theming |
+| Pinia        | 3       | State management (auth, theme, toast)           |
+| Vue Router   | 5       | File-based route modules, async guards          |
+| Axios        | 1.x     | HTTP client with interceptors                   |
+| Chart.js     | 4       | Data visualization                              |
+| Tiptap       | 3       | Headless WYSIWYG editor                         |
+| Lucide       | 1.x     | 1000+ icons                                     |
+| Vite         | 8       | Dev server and build tool                       |
 
-## 📁 Project Structure
-
-```
-src/
-├── assets/          # Global CSS (Tailwind config, dark mode, color themes)
-├── components/
-│   ├── ui/          # Reusable UI component library
-│   ├── charts/      # Chart wrappers (Line, Bar, Doughnut)
-│   └── layout/      # DashboardLayout, SidebarNav, TopBar
-├── composables/
-│   ├── useApi.ts    # Generic loading/error/data composable
-│   ├── usePagination.ts  # Paginated list with search, sort, filters
-│   └── useToast.ts  # Programmatic toast notifications
-├── lib/
-│   ├── config.ts    # Multi-backend API configuration
-│   ├── crypto.ts    # Secure storage (AES-GCM encrypt/decrypt)
-│   └── http.ts      # Axios instance factory with interceptors + silent refresh
-├── pages/
-│   ├── auth/        # Login, Register, Forgot Password
-│   ├── accounting/  # Chart of Accounts, Journals, Ledger, Statements, Tax
-│   ├── clients/     # Client CRUD
-│   ├── crm/         # CRM: Leads, Companies, Contacts, Deals, Activities, Follow Ups, Tasks, Quotations, Calendar, Reports
-│   ├── hrm/         # HRM: Employees, Departments, Positions, Attendance, Leave, Payroll, Recruitment, Performance, Training, Assets, Documents, Expenses, Announcements, Calendar, Reports
-│   ├── invoices/    # Invoice CRUD + Unpaid/Overdue views
-│   ├── pos/         # POS Terminal, Dashboard, Stock, Customers, Discounts, Reports
-│   ├── projects/    # Kanban, Task Detail
-│   ├── users/       # Users, Roles, Permissions
-│   └── examples/    # Component showcase pages
-├── router/          # Route modules per feature
-└── stores/          # Pinia stores (auth, theme, toast)
-```
-
-## 🚀 Getting Started
+## 🚀 Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/anggagewor/purdia.git
+cd purdia
+
 # Install dependencies
 npm install
 
@@ -182,151 +188,48 @@ npm run build
 npm run preview
 ```
 
-## 🔐 Authentication
+## 📁 Project Structure
 
-Mock auth is enabled — any email/password combination works. After login, all dashboard routes are protected. Auth tokens are encrypted before being stored in localStorage using AES-GCM (Web Crypto API).
-
-**Default flow:**
-
-1. Visit any page → redirected to `/login`
-2. Enter any email + password → lands on dashboard
-3. Refresh page → session persists (async decrypt on init)
-4. Logout → encrypted tokens cleared, returns to login
-
-**Token refresh:**
-
-When a request returns 401, the interceptor automatically attempts a silent refresh using the stored `refresh_token` before falling back to logout. Concurrent requests are queued and retried once the new token is available. Expected refresh endpoint: `POST /api/auth/refresh`.
-
-## 🌐 HTTP Helper
-
-Located in `src/lib/http.ts`. Pre-configured for backend integration:
-
-- **Auto token injection** — Bearer token from encrypted storage on every request
-- **Silent token refresh** — On 401, automatically attempts refresh before logging out. Queues concurrent requests during refresh.
-- **Multi-backend support** — Configure multiple services in `src/lib/config.ts`
-- **Error normalization** — Consistent `ApiError` object (message, errors, status)
-- **Auto toast on errors** — Network errors, 403, 419, 429, 500+ show toast automatically. 422 validation errors are left for form-level handling.
-- **Common status handling** — 403, 419 (CSRF), 422 (validation), 429 (rate limit), 500+
-- **Convenience methods** — `get`, `post`, `put`, `patch`, `del`, `upload`, `download`
-
-```ts
-import { get, post, upload } from '@/lib/http'
-import { useHttp } from '@/lib/http'
-
-// Default (main) service
-const { data } = await get<Product[]>('/products')
-
-// Different backend service
-const paymentApi = useHttp('payment')
-await paymentApi.post('/charge', { amount: 50000 })
+```
+src/
+├── assets/              # Global CSS (Tailwind config, dark mode, color themes)
+├── components/
+│   ├── ui/              # 25+ reusable UI components
+│   ├── charts/          # Chart wrappers (Line, Bar, Doughnut)
+│   └── layout/          # DashboardLayout, SidebarNav, TopBar
+├── composables/
+│   ├── useApi.ts        # Generic loading/error/data composable
+│   ├── usePagination.ts # Paginated list with search, sort, filters
+│   └── useToast.ts      # Programmatic toast notifications
+├── lib/
+│   ├── config.ts        # Multi-backend API configuration
+│   ├── crypto.ts        # Secure storage (AES-GCM encrypt/decrypt)
+│   └── http.ts          # Axios instance with interceptors + silent refresh
+├── pages/
+│   ├── auth/            # Login, Register, Forgot Password
+│   ├── accounting/      # Chart of Accounts, Journals, Ledger, Statements, Tax
+│   ├── clients/         # Client CRUD (company & individual)
+│   ├── crm/             # CRM (11 sub-modules, 35 pages)
+│   ├── hrm/             # HRM (16 sub-modules, 47 pages)
+│   ├── invoices/        # Invoice CRUD + filtered views
+│   ├── pos/             # POS Terminal, Stock, Customers, Reports
+│   ├── projects/        # Kanban board, Task Detail
+│   ├── users/           # Users, Roles, Permissions
+│   └── examples/        # Component showcase pages
+├── router/
+│   └── routes/          # Route modules per feature
+└── stores/              # Pinia stores (auth, theme, toast)
 ```
 
-Adding a new backend service:
+## 🤝 Contributing
 
-```ts
-// src/lib/config.ts
-const configs = {
-  main: { baseURL: '/api', timeout: 30_000 },
-  payment: { baseURL: 'https://payment.example.com/v1', timeout: 60_000 },
-}
-```
+Contributions are welcome! Feel free to open issues or submit pull requests.
 
-## 🧩 Composables
-
-Located in `src/composables/`. Extract common async patterns so pages stay clean.
-
-### `useApi`
-
-Generic composable for any API call — manages loading, error, and data refs.
-
-```ts
-import { useApi } from '@/composables'
-import { get, post } from '@/lib/http'
-
-// Fetch data
-const { data: client, loading, error, execute } = useApi((id) => get<Client>(`/clients/${id}`))
-await execute(clientId)
-
-// Mutation with callback
-const { execute: save, loading: saving } = useApi((payload) => post<Client>('/clients', payload), {
-  onSuccess: (data) => toast.success('Saved!'),
-})
-```
-
-### `usePagination`
-
-Paginated list with reactive search, sort, filters, and auto-refetch on page change.
-
-```ts
-import { usePagination } from '@/composables'
-
-const {
-  data: clients,
-  loading,
-  currentPage,
-  perPage,
-  search,
-  totalPages,
-  totalItems,
-  sortBy,
-  sortDir,
-  filters,
-  refresh,
-} = usePagination<Client>('/clients')
-
-// Works directly with BasePagination:
-// <BasePagination v-model:current-page="currentPage" :total-pages="totalPages" />
-```
-
-### `useToast`
-
-Programmatic toast notifications from any component or composable.
-
-```ts
-import { useToast } from '@/composables'
-
-const toast = useToast()
-toast.success('Data berhasil disimpan!')
-toast.error('Gagal memuat data.')
-toast.warning('Stok hampir habis.')
-toast.info('Update tersedia.')
-```
-
-## 🎨 Theming
-
-### Dark / Light Mode
-
-Toggle via the moon/sun icon in the top navigation bar. The theme:
-
-- Respects system preference on first visit
-- Persists per-user to localStorage
-- Applies globally via CSS class strategy
-
-### Primary Color
-
-Click the palette icon in the top bar to switch between 8 color schemes:
-
-| Color   | Preview |
-| ------- | ------- |
-| Indigo  | Default |
-| Blue    | Cool    |
-| Emerald | Fresh   |
-| Rose    | Warm    |
-| Amber   | Golden  |
-| Teal    | Calm    |
-| Violet  | Bold    |
-| Slate   | Neutral |
-
-Colors are implemented via CSS custom properties in `src/assets/main.css`. Tailwind's `primary-*` utilities automatically follow the selected theme. Preference is persisted per-user.
-
-## 🔒 Secure Storage
-
-Sensitive data (tokens, user info) is never stored as plain text in localStorage. The `src/lib/crypto.ts` module provides:
-
-- **AES-GCM encryption** via Web Crypto API
-- **PBKDF2 key derivation** (100k iterations + random salt per write)
-- **Tamper detection** — corrupted data is auto-cleared
-- **Simple API** — `secureSet(key, value)`, `secureGet(key)`, `secureRemove(key)`
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
