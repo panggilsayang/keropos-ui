@@ -13,6 +13,7 @@ import accountingRoutes from './routes/accounting'
 import invoicesRoutes from './routes/invoices'
 import crmRoutes from './routes/crm'
 import hrmRoutes from './routes/hrm'
+import inventoryRoutes from './routes/inventory'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,6 +30,7 @@ const router = createRouter({
     ...invoicesRoutes,
     ...crmRoutes,
     ...hrmRoutes,
+    ...inventoryRoutes,
   ],
 })
 
