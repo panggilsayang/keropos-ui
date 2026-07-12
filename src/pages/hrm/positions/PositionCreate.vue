@@ -1,0 +1,96 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { BaseCard, BaseInput, BaseButton, BaseSelect } from '@/components/ui'
+import { ArrowLeft } from '@lucide/vue'
+import type { SelectOption } from '@/components/ui/BaseSelect.vue'
+
+const router = useRouter()
+
+const departmentOptions: SelectOption[] = [
+  { label: 'Engineering', value: 'engineering' },
+  { label: 'Marketing', value: 'marketing' },
+  { label: 'Finance', value: 'finance' },
+  { label: 'Human Resources', value: 'hr' },
+  { label: 'Operations', value: 'operations' },
+  { label: 'Sales', value: 'sales' },
+  { label: 'Product', value: 'product' },
+  { label: 'Customer Support', value: 'support' },
+]
+
+const levelOptions: SelectOption[] = [
+  { label: 'Junior', value: 'junior' },
+  { label: 'Mid', value: 'mid' },
+  { label: 'Senior', value: 'senior' },
+  { label: 'Lead', value: 'lead' },
+  { label: 'Manager', value: 'manager' },
+]
+
+const form = ref({
+  name: '',
+  department: '' as string | number,
+  level: '' as string | number,
+  salaryMin: '',
+  salaryMax: '',
+  description: '',
+})
+
+function handleSave() {
+  router.push('/hrm/positions')
+}
+</script>
+
+<template>
+  <div class="space-y-6">
+    <div class="flex items-center gap-3">
+      <BaseButton
+        variant="ghost"
+        size="sm"
+        :icon="ArrowLeft"
+        @click="router.push('/hrm/positions')"
+      />
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Add Position</h1>
+        <p class="text-gray-500 mt-1">Create a new job position.</p>
+      </div>
+    </div>
+    <BaseCard>
+      <div class="space-y-4">
+        <BaseInput v-model="form.name" label="Position Name" placeholder="e.g. Senior Developer" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <BaseSelect
+            v-model="form.department"
+            label="Department"
+            :options="departmentOptions"
+            placeholder="Select department..."
+          />
+          <BaseSelect
+            v-model="form.level"
+            label="Level"
+            :options="levelOptions"
+            placeholder="Select level..."
+          />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <BaseInput v-model="form.salaryMin" label="Salary Range Min" placeholder="Rp 0" />
+          <BaseInput v-model="form.salaryMax" label="Salary Range Max" placeholder="Rp 0" />
+        </div>
+        <div>
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1"
+            >Description</label
+          >
+          <textarea
+            v-model="form.description"
+            rows="3"
+            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 resize-none placeholder:text-gray-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+            placeholder="Position description..."
+          />
+        </div>
+      </div>
+    </BaseCard>
+    <div class="flex justify-end gap-2">
+      <BaseButton variant="ghost" @click="router.push('/hrm/positions')">Cancel</BaseButton>
+      <BaseButton @click="handleSave">Create Position</BaseButton>
+    </div>
+  </div>
+</template>
