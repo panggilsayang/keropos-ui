@@ -73,12 +73,13 @@ Modern Vue 3 Admin Dashboard built with TypeScript & Tailwind CSS 4.
 
 ### ⚡ Quick Start
 
-````bash
+```bash
 # Install dependencies
 npm install
 
 # Run local development server
 npm run dev
+```
 
 ## 📦 Modules
 
@@ -228,7 +229,7 @@ npm run build
 
 # Preview production build
 npm run preview
-````
+```
 
 ## 📁 Project Structure
 
