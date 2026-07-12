@@ -51,6 +51,15 @@ import {
   PanelTop,
   Navigation,
   Puzzle,
+  Handshake,
+  Target,
+  Building,
+  CircleUserRound,
+  ActivitySquare,
+  BellRing,
+  ListTodo,
+  FileCheck,
+  BarChart2,
 } from '@lucide/vue'
 import type { Component as VueComponent } from 'vue'
 
@@ -137,6 +146,23 @@ const menuItems: MenuItem[] = [
   },
   { icon: BarChart3, label: 'Analytics', to: '/analytics' },
   { icon: Contact, label: 'Clients', to: '/clients' },
+  {
+    icon: Handshake,
+    label: 'CRM',
+    children: [
+      { icon: LayoutDashboard, label: 'Dashboard', to: '/crm' },
+      { icon: Target, label: 'Leads', to: '/crm/leads' },
+      { icon: Building, label: 'Companies', to: '/crm/companies' },
+      { icon: CircleUserRound, label: 'Contacts', to: '/crm/contacts' },
+      { icon: Handshake, label: 'Deals', to: '/crm/deals' },
+      { icon: ActivitySquare, label: 'Activities', to: '/crm/activities' },
+      { icon: BellRing, label: 'Follow Ups', to: '/crm/follow-ups' },
+      { icon: ListTodo, label: 'Tasks', to: '/crm/tasks' },
+      { icon: FileCheck, label: 'Quotations', to: '/crm/quotations' },
+      { icon: Calendar, label: 'Calendar', to: '/crm/calendar' },
+      { icon: BarChart2, label: 'Reports', to: '/crm/reports' },
+    ],
+  },
   {
     icon: Receipt,
     label: 'Invoices',
