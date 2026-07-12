@@ -35,9 +35,52 @@ Modern, full-featured admin dashboard built with Vue 3, TypeScript, and Tailwind
 - **Invoice Management** — CRUD invoices with line items, tax calculation, status tracking, and filtered views (unpaid, overdue).
 - **Accounting** — Chart of Accounts, Journal Entries, General Ledger, Financial Statements, Tax Management.
 - **User Management** — Users, Roles, Permissions with full CRUD modals.
+- **CRM** — Full Customer Relationship Management: Leads, Companies, Contacts, Deals (pipeline stages), Activities, Follow Ups, Tasks, Quotations (with line items), Calendar, and Reports with charts.
+- **HRM** — Complete Human Resource Management: Employees, Departments, Positions, Attendance, Leave, Payroll (payslip detail), Recruitment (applicants tracking), Performance Reviews, Training, Assets, Documents, Expenses, Announcements, Calendar, and Reports.
 - **Client Management** — Client list, detail, create, edit with type badges and avatars.
 - **Project Management** — Kanban board with drag-and-drop, task detail views.
 - **Collapsible Sidebar** — Icon-only mode with flyout popover submenus on hover/click. Nested category navigation for component library.
+
+## 📊 CRM Module
+
+Full-featured Customer Relationship Management system located in `src/pages/crm/`.
+
+| Sub-module | Features                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------- |
+| Dashboard  | Pipeline stats, recent deals, upcoming activities                                           |
+| Leads      | CRUD with source tracking, status workflow (new → contacted → qualified → proposal → lost)  |
+| Companies  | CRUD with industry, employee count, revenue tracking                                        |
+| Contacts   | CRUD with company association, position, avatar                                             |
+| Deals      | CRUD with pipeline stages, probability, value, close date                                   |
+| Activities | Log calls, meetings, emails linked to contacts & deals                                      |
+| Follow Ups | Priority-based follow-up scheduler with due dates                                           |
+| Tasks      | Task management with assignee, priority, status (todo → in-progress → completed)            |
+| Quotations | Line-item quotations with auto-calculated totals, status (draft → sent → accepted/rejected) |
+| Calendar   | Monthly calendar view with CRM events                                                       |
+| Reports    | Revenue charts, pipeline by stage, lead sources, top performers                             |
+
+## 👥 HRM Module
+
+Complete Human Resource Management system located in `src/pages/hrm/`.
+
+| Sub-module    | Features                                                                        |
+| ------------- | ------------------------------------------------------------------------------- |
+| Dashboard     | Employee stats, recent leave requests, birthdays, announcements                 |
+| Employees     | Full CRUD with tabbed form (personal, employment, bank & salary)                |
+| Departments   | CRUD with head, budget, employee count                                          |
+| Positions     | CRUD with level (junior → manager), salary range                                |
+| Attendance    | Daily clock-in/out tracking with status (present, late, absent, half-day)       |
+| Leave         | Leave requests with type (annual, sick, personal, maternity), approval workflow |
+| Payroll       | Payslip generation with earnings/deductions breakdown, IDR currency             |
+| Recruitment   | Job postings with applicant tracking (screening → interview → offered/rejected) |
+| Performance   | Quarterly reviews with rating, goals, feedback                                  |
+| Training      | Training programs with participants, schedule, completion status                |
+| Assets        | Company asset tracking (laptops, monitors, etc.) with condition & assignment    |
+| Documents     | Employee document storage (contracts, certificates, IDs) with expiry tracking   |
+| Expenses      | Expense claims with category, receipt, approval workflow                        |
+| Announcements | Company-wide announcements with type, priority, expiry                          |
+| Calendar      | Monthly calendar with birthdays, leave, training, holidays                      |
+| Reports       | Attendance rate, headcount, leave by type, department budget analytics          |
 
 ## 🧱 Component Library
 
@@ -112,6 +155,8 @@ src/
 │   ├── auth/        # Login, Register, Forgot Password
 │   ├── accounting/  # Chart of Accounts, Journals, Ledger, Statements, Tax
 │   ├── clients/     # Client CRUD
+│   ├── crm/         # CRM: Leads, Companies, Contacts, Deals, Activities, Follow Ups, Tasks, Quotations, Calendar, Reports
+│   ├── hrm/         # HRM: Employees, Departments, Positions, Attendance, Leave, Payroll, Recruitment, Performance, Training, Assets, Documents, Expenses, Announcements, Calendar, Reports
 │   ├── invoices/    # Invoice CRUD + Unpaid/Overdue views
 │   ├── pos/         # POS Terminal, Dashboard, Stock, Customers, Discounts, Reports
 │   ├── projects/    # Kanban, Task Detail
