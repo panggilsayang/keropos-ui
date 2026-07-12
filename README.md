@@ -143,6 +143,19 @@ npm run dev
 | Financial Statements | Balance sheet, income statement |
 | Tax Management       | Tax calculation and reporting   |
 
+### 📦 Inventory
+
+| Sub-module      | Description                                                                  |
+| --------------- | ---------------------------------------------------------------------------- |
+| Dashboard       | Stats overview, quick actions, recent stock movements                        |
+| Products        | Full CRUD with SKU, barcode, category, warehouse, stock levels, pricing      |
+| Warehouses      | Warehouse locations with manager, capacity, item count                       |
+| Stock Movements | Track stock in, stock out, and transfers between warehouses                  |
+| Purchases       | Purchase order CRUD with multi-item line items, supplier, status tracking    |
+| Barcodes        | Barcode listing, generate & print labels (EAN-13, Code-128, QR), scan/lookup |
+| Maintenance     | Equipment maintenance requests with type, priority, scheduling, activity log |
+| Quality Control | Quality inspections with checklist, pass/fail results, batch tracking        |
+
 ### 🧾 Invoices
 
 | Sub-module   | Description                                   |
@@ -254,6 +267,7 @@ src/
 │   ├── clients/         # Client CRUD (company & individual)
 │   ├── crm/             # CRM (11 sub-modules, 35 pages)
 │   ├── hrm/             # HRM (16 sub-modules, 47 pages)
+│   ├── inventory/       # Inventory (8 sub-modules, 22 pages)
 │   ├── invoices/        # Invoice CRUD + filtered views
 │   ├── pos/             # POS Terminal, Stock, Customers, Reports
 │   ├── projects/        # Kanban board, Task Detail
