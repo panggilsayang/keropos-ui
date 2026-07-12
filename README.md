@@ -9,11 +9,11 @@ Modern Vue 3 Admin Dashboard built with TypeScript & Tailwind CSS 4.
 </p>
 
 <p align="center">
-<img src="https://img.shields.io/github/license/anggagewor/purdia">
-<img src="https://img.shields.io/github/stars/anggagewor/purdia">
-<img src="https://img.shields.io/github/issues/anggagewor/purdia">
-<img src="https://img.shields.io/badge/Vue-3.5-42b883">
-<img src="https://img.shields.io/badge/Tailwind-v4-38bdf8">
+  <img src="https://img.shields.io/github/stars/anggagewor/purdia?style=for-the-badge">
+  <img src="https://img.shields.io/github/license/anggagewor/purdia?style=for-the-badge">
+  <img src="https://img.shields.io/badge/Vue_3-3.5-42b883?style=for-the-badge&logo=vuedotjs&logoColor=white">
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
+  <img src="https://img.shields.io/badge/Tailwind-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white">
 </p>
 
 ---
