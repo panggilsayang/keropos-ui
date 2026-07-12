@@ -13,6 +13,7 @@ import {
 import { Plus, MoreHorizontal, Eye, Edit, Trash2 } from '@lucide/vue'
 import type { TableColumn } from '@/components/ui/BaseTable.vue'
 import type { DropdownItem } from '@/components/ui/DropdownButton.vue'
+import type { BadgeVariant } from '@/components/ui/BaseBadge.vue'
 
 const router = useRouter()
 const showDeleteModal = ref(false)
@@ -127,8 +128,8 @@ function handleAction(item: DropdownItem, row: Record<string, unknown>) {
   if (item.value === 'delete') showDeleteModal.value = true
 }
 
-function getConditionVariant(condition: string) {
-  const map: Record<string, string> = {
+function getConditionVariant(condition: string): BadgeVariant {
+  const map: Record<string, BadgeVariant> = {
     good: 'success',
     fair: 'warning',
     damaged: 'danger',
@@ -136,8 +137,8 @@ function getConditionVariant(condition: string) {
   return map[condition] || 'secondary'
 }
 
-function getStatusVariant(status: string) {
-  const map: Record<string, string> = {
+function getStatusVariant(status: string): BadgeVariant {
+  const map: Record<string, BadgeVariant> = {
     'in-use': 'primary',
     available: 'success',
     maintenance: 'warning',

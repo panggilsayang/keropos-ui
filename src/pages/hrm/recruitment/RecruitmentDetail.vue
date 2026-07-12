@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { BaseCard, BaseButton, BaseBadge, BaseAvatar } from '@/components/ui'
 import { ArrowLeft, Edit, Briefcase, Building2, Calendar, DollarSign } from '@lucide/vue'
+import type { BadgeVariant } from '@/components/ui/BaseBadge.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -54,8 +55,8 @@ const applicants = ref([
   },
 ])
 
-function getApplicantStatusVariant(status: string) {
-  const map: Record<string, string> = {
+function getApplicantStatusVariant(status: string): BadgeVariant {
+  const map: Record<string, BadgeVariant> = {
     screening: 'warning',
     interview: 'primary',
     offered: 'success',
