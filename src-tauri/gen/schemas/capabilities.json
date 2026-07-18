@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Default permissions for the main window","local":true,"windows":["main"],"permissions":["core:default","core:event:default","spp-printer:allow-list-paired","spp-printer:allow-connect","spp-printer:allow-write","spp-printer:allow-disconnect"]}}

@@ -1,0 +1,31 @@
+[package]
+name = "purdia-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "purdia_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+pos-core = { path = "../../../crates/pos-core" }
+pos-terminal = { path = "../../../crates/pos-terminal" }
+pos-sync = { path = "../../../crates/pos-sync" }
+tauri-plugin-spp-printer = { path = "tauri-plugin-spp-printer" }
+tauri = { version = "2", features = [] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+futures = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

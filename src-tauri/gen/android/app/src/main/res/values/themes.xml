@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.purdia_desktop" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- targetSdk 36 (Android 15+) forces edge-to-edge by default, which
+             draws the webview under the status bar with no inset handling —
+             opt out so the system reserves space for it like before. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

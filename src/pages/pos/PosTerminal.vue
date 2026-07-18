@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   BaseButton,
   BaseBadge,
@@ -24,11 +24,25 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  Printer,
 } from '@lucide/vue'
 import type { SelectOption } from '@/components/ui/BaseSelect.vue'
+import { terminal, onSyncEvent } from '@/lib/terminal'
+import type { Transaction, LineItem, PaymentMethod as ApiPaymentMethod, ModifierOption } from '@/lib/terminal'
+import ModifierPickerModal from '@/components/pos/ModifierPickerModal.vue'
+import type { ModifierGroupWithOptions } from '@/components/pos/ModifierPickerModal.vue'
+import CashNumpad from '@/components/pos/CashNumpad.vue'
+import { listPairedPrinters, connectPrinter, disconnectPrinter, printReceipt, printTestReceipt, type PairedDevice } from '@/lib/printer'
+import { receiptLines } from '@/lib/receipt'
 
+const PRINTER_STORAGE_KEY = 'purdia_printer_address'
+
+// Display shape the template renders — sourced from the real
+// products/categories/inventory fetched from the embedded terminal core
+// (see refetch() below), not the hardcoded demo array this page used to
+// carry. `id` is a UUID string (matches pos-core's Uuid), not a number.
 interface Product {
-  id: number
+  id: string
   name: string
   price: number
   category: string
@@ -40,32 +54,83 @@ interface CartItem {
   qty: number
   discount: number
   discountType: 'nominal' | 'percent'
+  selectedModifiers: ModifierOption[]
 }
 
-const products: Product[] = [
-  { id: 1, name: 'Kopi Susu Gula Aren', price: 25000, category: 'Beverages', stock: 50 },
-  { id: 2, name: 'Americano', price: 22000, category: 'Beverages', stock: 40 },
-  { id: 3, name: 'Cappuccino', price: 28000, category: 'Beverages', stock: 35 },
-  { id: 4, name: 'Es Teh Manis', price: 10000, category: 'Beverages', stock: 100 },
-  { id: 5, name: 'Nasi Goreng Spesial', price: 30000, category: 'Food', stock: 25 },
-  { id: 6, name: 'Mie Ayam Bakso', price: 20000, category: 'Food', stock: 30 },
-  { id: 7, name: 'Roti Bakar Coklat', price: 18000, category: 'Food', stock: 20 },
-  { id: 8, name: 'French Fries', price: 15000, category: 'Snacks', stock: 40 },
-  { id: 9, name: 'Dimsum Ayam', price: 25000, category: 'Snacks', stock: 30 },
-  { id: 10, name: 'Mineral Water', price: 5000, category: 'Beverages', stock: 200 },
-  { id: 11, name: 'Juice Alpukat', price: 20000, category: 'Beverages', stock: 25 },
-  { id: 12, name: 'Chicken Wings', price: 28000, category: 'Snacks', stock: 18 },
-]
+const productsRaw = ref<Awaited<ReturnType<typeof terminal.listProducts>>>([])
+const categoriesRaw = ref<Awaited<ReturnType<typeof terminal.listCategories>>>([])
+const inventoryRaw = ref<Awaited<ReturnType<typeof terminal.listInventory>>>([])
 
-const categories = ['All', 'Beverages', 'Food', 'Snacks']
+const catNameById = computed(() => new Map(categoriesRaw.value.map((c) => [c.id, c.name])))
+const stockByProductId = computed(() => new Map(inventoryRaw.value.map((i) => [i.product_id, i.qty])))
+
+const products = computed<Product[]>(() =>
+  productsRaw.value
+    .filter((p) => p.is_available && !p.is_archived)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      category: (p.category_id && catNameById.value.get(p.category_id)) || 'Uncategorized',
+      stock: stockByProductId.value.get(p.id) ?? 0,
+    })),
+)
+
+const categories = computed(() => [
+  'All',
+  ...categoriesRaw.value
+    .filter((c) => !c.is_archived)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((c) => c.name),
+])
+
+// group_id -> { group, options }. Fetched once up front — the demo catalog
+// is tiny, and modifier groups/options change far less often than
+// products/inventory. Per-product links are fetched lazily on tap instead
+// (see openAddToCart) rather than upfront for every product.
+const modifierGroupsById = ref<Map<string, ModifierGroupWithOptions>>(new Map())
+
+async function refetch() {
+  const [p, c, inv, groups] = await Promise.all([
+    terminal.listProducts(),
+    terminal.listCategories(),
+    terminal.listInventory(),
+    terminal.listModifierGroups(),
+  ])
+  productsRaw.value = p
+  categoriesRaw.value = c
+  inventoryRaw.value = inv
+
+  const options = await Promise.all(groups.map((g) => terminal.listModifierOptions(g.id)))
+  modifierGroupsById.value = new Map(
+    groups.map((group, i) => [group.id, { group, options: options[i] ?? [] }]),
+  )
+}
+
+let unlistenSync: (() => void) | null = null
+onMounted(async () => {
+  await refetch()
+  loadPairedPrinters()
+  // Any peer sync event triggers a full refetch rather than replaying the
+  // delta client-side — simpler, and avoids re-implementing
+  // SyncService::apply_gossip's logic in TypeScript. Only gossip
+  // (inventory) events are forwarded today, not durable catalog changes.
+  unlistenSync = await onSyncEvent(() => {
+    refetch()
+  })
+})
+onUnmounted(() => {
+  unlistenSync?.()
+})
+
 const activeCategory = ref('All')
 const searchQuery = ref('')
 const cart = ref<CartItem[]>([])
 
 // Favorites
-const favorites = ref<Set<number>>(new Set())
+const favorites = ref<Set<string>>(new Set())
 
-function toggleFavorite(productId: number) {
+function toggleFavorite(productId: string) {
   if (favorites.value.has(productId)) {
     favorites.value.delete(productId)
   } else {
@@ -73,18 +138,18 @@ function toggleFavorite(productId: number) {
   }
 }
 
-function isFavorite(productId: number) {
+function isFavorite(productId: string) {
   return favorites.value.has(productId)
 }
 
-const favoriteProducts = computed(() => products.filter((p) => favorites.value.has(p.id)))
+const favoriteProducts = computed(() => products.value.filter((p) => favorites.value.has(p.id)))
 
 // Pagination
 const currentPage = ref(1)
 const perPage = 8
 
 const filteredProducts = computed(() => {
-  let list = products
+  let list = products.value
   if (activeCategory.value !== 'All') {
     list = list.filter((p) => p.category === activeCategory.value)
   }
@@ -130,6 +195,75 @@ const cardNumber = ref('')
 const cardIssuer = ref<string | number>('')
 const ewalletIssuer = ref<string | number>('')
 const ewalletPhone = ref('')
+const checkingOut = ref(false)
+const checkoutError = ref('')
+
+// Receipt printer (classic Bluetooth SPP — see src/lib/printer.ts). Printing
+// is best-effort: the sale is already persisted by the time we print, so a
+// print failure is surfaced but never blocks or undoes the checkout.
+const pairedPrinters = ref<PairedDevice[]>([])
+const selectedPrinterAddress = ref(localStorage.getItem(PRINTER_STORAGE_KEY) ?? '')
+const showPrinterPicker = ref(false)
+const printerBusy = ref(false)
+const printStatus = ref('')
+// The most recently completed sale — kept around (independent of the cart,
+// which clears on checkout) so the cashier can print an extra copy for the
+// buyer on request, at any point after the fact, not just immediately.
+const lastTransaction = ref<Transaction | null>(null)
+const printingCopy = ref(false)
+
+async function loadPairedPrinters() {
+  try {
+    pairedPrinters.value = await listPairedPrinters()
+  } catch (e) {
+    printStatus.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
+function selectPrinter(address: string) {
+  selectedPrinterAddress.value = address
+  localStorage.setItem(PRINTER_STORAGE_KEY, address)
+}
+
+async function testPrint() {
+  if (!selectedPrinterAddress.value) return
+  printerBusy.value = true
+  printStatus.value = ''
+  try {
+    await connectPrinter(selectedPrinterAddress.value)
+    await printTestReceipt(selectedPrinterAddress.value)
+    await disconnectPrinter(selectedPrinterAddress.value)
+  } catch (e) {
+    printStatus.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    printerBusy.value = false
+  }
+}
+
+async function printLastReceipt(tx: Transaction, label?: string) {
+  if (!selectedPrinterAddress.value) return
+  try {
+    await connectPrinter(selectedPrinterAddress.value)
+    await printReceipt(selectedPrinterAddress.value, receiptLines(tx, label))
+    await disconnectPrinter(selectedPrinterAddress.value)
+  } catch (e) {
+    printStatus.value = 'Print failed: ' + (e instanceof Error ? e.message : String(e))
+  }
+}
+
+// On-demand extra copy for the buyer — some customers ask for their own
+// receipt in addition to the store/checker copy that already printed
+// automatically at checkout. Reprints the same transaction, labeled so it's
+// clear which copy is which.
+async function printCustomerCopy() {
+  if (!lastTransaction.value || !selectedPrinterAddress.value || printingCopy.value) return
+  printingCopy.value = true
+  try {
+    await printLastReceipt(lastTransaction.value, 'CUSTOMER COPY')
+  } finally {
+    printingCopy.value = false
+  }
+}
 
 const paymentOptions: SelectOption[] = [
   { label: 'Cash', value: 'cash' },
@@ -166,12 +300,47 @@ const memberOptions: SelectOption[] = [
   { label: 'Lisa Permata - M004', value: 'M004' },
 ]
 
-function addToCart(product: Product) {
-  const existing = cart.value.find((c) => c.product.id === product.id)
+function addToCart(product: Product, selectedModifiers: ModifierOption[] = []) {
+  const modifierKey = (mods: ModifierOption[]) =>
+    mods
+      .map((m) => m.id)
+      .sort()
+      .join(',')
+  const existing = cart.value.find(
+    (c) => c.product.id === product.id && modifierKey(c.selectedModifiers) === modifierKey(selectedModifiers),
+  )
   if (existing) {
     existing.qty++
   } else {
-    cart.value.push({ product, qty: 1, discount: 0, discountType: 'percent' })
+    cart.value.push({ product, qty: 1, discount: 0, discountType: 'percent', selectedModifiers })
+  }
+}
+
+// Modifier picker state — tapping a product with linked modifier groups
+// opens the picker instead of adding directly; products with none (e.g.
+// Croissant, Nasi Goreng in the demo catalog) skip straight to addToCart.
+const showModifierPicker = ref(false)
+const modifierPickerProduct = ref<Product | null>(null)
+const modifierPickerGroups = ref<ModifierGroupWithOptions[]>([])
+
+async function openAddToCart(product: Product) {
+  const links = await terminal.getProductModifierGroups(product.id)
+  if (links.length === 0) {
+    addToCart(product)
+    return
+  }
+  modifierPickerGroups.value = links
+    .slice()
+    .sort(([, a], [, b]) => a - b)
+    .map(([groupId]) => modifierGroupsById.value.get(groupId))
+    .filter((g): g is ModifierGroupWithOptions => g !== undefined)
+  modifierPickerProduct.value = product
+  showModifierPicker.value = true
+}
+
+function onModifierConfirm(selected: ModifierOption[]) {
+  if (modifierPickerProduct.value) {
+    addToCart(modifierPickerProduct.value, selected)
   }
 }
 
@@ -186,8 +355,12 @@ function removeItem(idx: number) {
   cart.value.splice(idx, 1)
 }
 
+function modifierDelta(item: CartItem) {
+  return item.selectedModifiers.reduce((sum, o) => sum + o.price_delta, 0)
+}
+
 function getItemTotal(item: CartItem) {
-  const base = item.product.price * item.qty
+  const base = (item.product.price + modifierDelta(item)) * item.qty
   if (item.discount <= 0) return base
   if (item.discountType === 'percent') return base - (base * item.discount) / 100
   return base - item.discount
@@ -210,17 +383,85 @@ function openPayment() {
   showPayment.value = true
 }
 
-function completeTransaction() {
-  cart.value = []
-  globalDiscount.value = 0
-  customerType.value = 'walkin'
-  customerName.value = ''
-  memberSearch.value = ''
-  cardNumber.value = ''
-  cardIssuer.value = ''
-  ewalletIssuer.value = ''
-  ewalletPhone.value = ''
-  showPayment.value = false
+// `pos_core::PaymentMethod` doesn't have a 1:1 match with this UI's payment
+// options — debit/credit both collapse to `card`, e-wallet maps to
+// `qris_dynamic` (QRIS is the dominant Indonesian e-wallet rail), bank
+// transfer maps to `bank_manual`. A known simplification, not a precise
+// mapping — flagged rather than silently assumed correct.
+function toApiPaymentMethod(method: string | number): ApiPaymentMethod {
+  switch (method) {
+    case 'debit':
+    case 'credit':
+      return 'card'
+    case 'ewallet':
+      return 'qris_dynamic'
+    case 'transfer':
+      return 'bank_manual'
+    default:
+      return 'cash'
+  }
+}
+
+// `pos_core::LineItem`/`Transaction` have no discount field at all, so
+// per-line and global discounts (both UI-only concepts here) are folded
+// into the unit price sent to the backend — this loses the discount audit
+// trail (known gap; would need a pos-core schema change to fix properly).
+// The global discount is distributed proportionally across lines so the
+// sum still matches `grandTotal`.
+function buildLineItems(): LineItem[] {
+  const scale = subtotal.value > 0 ? grandTotal.value / subtotal.value : 1
+  return cart.value.map((item) => {
+    const lineTotal = Math.round(getItemTotal(item) * scale)
+    const unitPrice = item.qty > 0 ? Math.round(lineTotal / item.qty) : item.product.price
+    const modifierSuffix = item.selectedModifiers.length
+      ? ` (${item.selectedModifiers.map((m) => m.name).join(', ')})`
+      : ''
+    return {
+      product_id: item.product.id,
+      name: item.product.name + modifierSuffix,
+      price: unitPrice,
+      qty: item.qty,
+    }
+  })
+}
+
+async function completeTransaction() {
+  if (checkingOut.value) return
+  checkingOut.value = true
+  checkoutError.value = ''
+  try {
+    const tx: Transaction = {
+      id: crypto.randomUUID(),
+      items: buildLineItems(),
+      total: grandTotal.value,
+      payment_method: toApiPaymentMethod(paymentMethod.value),
+      payment_status: 'paid',
+      order_id: null,
+      paid_ms: Date.now(),
+      synced: false,
+    }
+    await terminal.checkout(tx)
+    // Refetch immediately so the cashier's own screen reflects the new
+    // stock right away — don't wait on the sync-event round trip, that's
+    // for picking up *other* terminals' sales.
+    await refetch()
+    lastTransaction.value = tx
+    await printLastReceipt(tx, 'STORE COPY')
+    cart.value = []
+    globalDiscount.value = 0
+    customerType.value = 'walkin'
+    customerName.value = ''
+    memberSearch.value = ''
+    cardNumber.value = ''
+    cardIssuer.value = ''
+    ewalletIssuer.value = ''
+    ewalletPhone.value = ''
+    showPayment.value = false
+  } catch (e) {
+    checkoutError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    checkingOut.value = false
+  }
 }
 
 function formatRp(n: number) {
@@ -229,13 +470,13 @@ function formatRp(n: number) {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 gap-4">
+  <div class="flex h-full min-h-0 gap-2">
     <!-- Left: Products -->
     <div class="flex-1 flex flex-col min-h-0">
       <!-- Search + Categories -->
-      <div class="shrink-0 space-y-3 mb-4">
+      <div class="shrink-0 space-y-2 mb-2">
         <div
-          class="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
+          class="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5 dark:bg-gray-800 dark:border-gray-700"
         >
           <Search class="w-4 h-4 text-gray-400 dark:text-gray-500" />
           <input
@@ -250,7 +491,7 @@ function formatRp(n: number) {
           <button
             v-for="cat in categories"
             :key="cat"
-            class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer"
+            class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
             :class="
               activeCategory === cat
                 ? 'bg-primary-500 text-white'
@@ -274,7 +515,7 @@ function formatRp(n: number) {
             v-for="product in favoriteProducts"
             :key="'fav-' + product.id"
             class="shrink-0 w-28 bg-amber-50 border border-amber-200 rounded-lg p-2 text-left hover:border-amber-400 hover:shadow-sm transition-all cursor-pointer dark:bg-amber-900/10 dark:border-amber-800 dark:hover:border-amber-500"
-            @click="addToCart(product)"
+            @click="openAddToCart(product)"
           >
             <p class="text-[0.6875rem] font-medium text-gray-800 truncate dark:text-gray-200">
               {{ product.name }}
@@ -288,20 +529,20 @@ function formatRp(n: number) {
 
       <!-- Product Grid -->
       <div class="flex-1 overflow-y-auto">
-        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
           <div
             v-for="product in paginatedProducts"
             :key="product.id"
-            class="relative bg-white border border-gray-200 rounded-lg p-3 text-left hover:border-primary-300 hover:shadow-sm transition-all dark:bg-gray-800 dark:border-gray-700 dark:hover:border-primary-500"
+            class="relative bg-white border border-gray-200 rounded-lg p-2 text-left hover:border-primary-300 hover:shadow-sm transition-all dark:bg-gray-800 dark:border-gray-700 dark:hover:border-primary-500"
           >
             <!-- Favorite toggle -->
             <button
-              class="absolute top-2 right-2 p-0.5 cursor-pointer z-10"
+              class="absolute top-1 right-1 p-0.5 cursor-pointer z-10"
               @click.stop="toggleFavorite(product.id)"
               :aria-label="isFavorite(product.id) ? 'Remove from favorites' : 'Add to favorites'"
             >
               <Star
-                class="w-4 h-4 transition-colors"
+                class="w-3.5 h-3.5 transition-colors"
                 :class="
                   isFavorite(product.id)
                     ? 'text-amber-500 fill-amber-500'
@@ -310,12 +551,12 @@ function formatRp(n: number) {
               />
             </button>
             <!-- Clickable area -->
-            <button class="w-full text-left cursor-pointer" @click="addToCart(product)">
+            <button class="w-full text-left cursor-pointer" @click="openAddToCart(product)">
               <div
-                class="w-full h-16 bg-gray-100 rounded-md flex items-center justify-center text-2xl mb-2 dark:bg-gray-700"
+                class="w-full h-9 bg-gray-100 rounded-md flex items-center justify-center text-lg mb-1 dark:bg-gray-700"
               >
                 {{
-                  product.category === 'Beverages'
+                  product.category === 'Beverages' || product.category === 'Drinks'
                     ? '☕'
                     : product.category === 'Food'
                       ? '🍽️'
@@ -353,13 +594,23 @@ function formatRp(n: number) {
 
     <!-- Right: Cart -->
     <div
-      class="w-96 shrink-0 bg-white border border-gray-200 rounded-xl flex flex-col min-h-0 dark:bg-gray-800 dark:border-gray-700"
+      class="w-72 shrink-0 bg-white border border-gray-200 rounded-xl flex flex-col min-h-0 dark:bg-gray-800 dark:border-gray-700"
     >
       <!-- Cart Header -->
       <div class="px-4 py-3 border-b border-gray-100 shrink-0 dark:border-gray-700">
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold text-gray-900 dark:text-gray-100">Current Order</h3>
-          <span class="text-xs text-gray-400 dark:text-gray-500">Cashier: Angga</span>
+          <div class="flex items-center gap-2">
+            <button
+              class="cursor-pointer"
+              :class="selectedPrinterAddress ? 'text-primary-500' : 'text-gray-300 dark:text-gray-600'"
+              :aria-label="'Printer'"
+              @click="showPrinterPicker = true"
+            >
+              <Printer class="w-4 h-4" />
+            </button>
+            <span class="text-xs text-gray-400 dark:text-gray-500">Cashier: Angga</span>
+          </div>
         </div>
         <!-- Customer Type -->
         <BaseSelect
@@ -400,8 +651,14 @@ function formatRp(n: number) {
                 <p class="text-sm font-medium text-gray-800 truncate dark:text-gray-200">
                   {{ item.product.name }}
                 </p>
+                <p
+                  v-if="item.selectedModifiers.length"
+                  class="text-[0.6875rem] text-gray-400 dark:text-gray-500 truncate"
+                >
+                  {{ item.selectedModifiers.map((m) => m.name).join(', ') }}
+                </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ formatRp(item.product.price) }} x {{ item.qty }}
+                  {{ formatRp(item.product.price + modifierDelta(item)) }} x {{ item.qty }}
                 </p>
               </div>
               <div class="flex items-center gap-1">
@@ -519,6 +776,15 @@ function formatRp(n: number) {
         <BaseButton block :disabled="cart.length === 0" @click="openPayment">
           <CreditCard class="w-4 h-4" /> Pay {{ formatRp(grandTotal) }}
         </BaseButton>
+        <button
+          v-if="lastTransaction"
+          class="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer dark:text-gray-400"
+          :disabled="!selectedPrinterAddress || printingCopy"
+          @click="printCustomerCopy"
+        >
+          <Printer class="w-3.5 h-3.5" />
+          {{ printingCopy ? 'Printing...' : 'Print Copy for Customer' }}
+        </button>
       </div>
     </div>
 
@@ -541,11 +807,10 @@ function formatRp(n: number) {
           <label class="text-sm font-medium text-gray-700 block mb-1 dark:text-gray-300"
             >Cash Received</label
           >
-          <input
-            v-model.number="cashReceived"
-            type="number"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-900/30"
-          />
+          <p class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            {{ formatRp(cashReceived) }}
+          </p>
+          <CashNumpad v-model="cashReceived" />
           <div
             v-if="change > 0"
             class="mt-2 p-2 bg-emerald-50 rounded-md text-center dark:bg-emerald-900/20"
@@ -595,10 +860,63 @@ function formatRp(n: number) {
             />
           </div>
         </div>
+        <p v-if="checkoutError" class="text-sm text-red-600 dark:text-red-400">
+          {{ checkoutError }}
+        </p>
       </div>
       <template #footer>
-        <BaseButton variant="ghost" size="sm" @click="showPayment = false">Cancel</BaseButton>
-        <BaseButton variant="success" size="sm" @click="completeTransaction">Complete</BaseButton>
+        <BaseButton variant="ghost" size="sm" :disabled="checkingOut" @click="showPayment = false"
+          >Cancel</BaseButton
+        >
+        <BaseButton variant="success" size="sm" :disabled="checkingOut" @click="completeTransaction">
+          {{ checkingOut ? 'Processing...' : 'Complete' }}
+        </BaseButton>
+      </template>
+    </BaseModal>
+
+    <ModifierPickerModal
+      v-model="showModifierPicker"
+      :product-name="modifierPickerProduct?.name ?? ''"
+      :groups="modifierPickerGroups"
+      @confirm="onModifierConfirm"
+    />
+
+    <!-- Printer Picker -->
+    <BaseModal v-model="showPrinterPicker" title="Receipt Printer" size="sm">
+      <div class="space-y-3">
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          Pair the printer via Android Bluetooth settings first, then pick it here.
+        </p>
+        <div v-if="pairedPrinters.length === 0" class="text-sm text-gray-400 text-center py-4">
+          No paired Bluetooth devices found.
+        </div>
+        <div v-else class="space-y-1.5">
+          <button
+            v-for="device in pairedPrinters"
+            :key="device.address"
+            class="w-full flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer transition-colors"
+            :class="
+              selectedPrinterAddress === device.address
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-500'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+            "
+            @click="selectPrinter(device.address)"
+          >
+            <span class="text-sm text-gray-700 dark:text-gray-300">{{ device.name }}</span>
+            <span class="text-[0.625rem] text-gray-400">{{ device.address }}</span>
+          </button>
+        </div>
+        <p v-if="printStatus" class="text-xs text-red-600 dark:text-red-400">{{ printStatus }}</p>
+      </div>
+      <template #footer>
+        <BaseButton variant="ghost" size="sm" @click="loadPairedPrinters">Refresh</BaseButton>
+        <BaseButton
+          size="sm"
+          :disabled="!selectedPrinterAddress || printerBusy"
+          @click="testPrint"
+        >
+          {{ printerBusy ? 'Printing...' : 'Test Print' }}
+        </BaseButton>
       </template>
     </BaseModal>
   </div>

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { isTauri } from '@tauri-apps/api/core'
 import { useAuthStore } from '@/stores/auth'
 
 import authRoutes from './routes/auth'
@@ -35,6 +36,18 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  // The Android build is a single-purpose cashier terminal embedding
+  // pos-terminal in-process (see apps/purdia/src-tauri) — that backend has
+  // no auth of its own (trusted local device), so the mocked web login
+  // serves no purpose here. Skip it and land straight on the POS terminal
+  // page instead of the dashboard/login screen.
+  if (isTauri()) {
+    if (to.meta.guest === true || to.name === 'dashboard') {
+      return { name: 'pos-terminal' }
+    }
+    return
+  }
+
   const auth = useAuthStore()
 
   // Wait for auth to be ready (async decrypt from secure storage)
