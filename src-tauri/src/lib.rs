@@ -176,6 +176,73 @@ async fn finalize_pending_order(
         .map_err(|e| e.to_string())
 }
 
+/// Open a new tab (`tab_id = None`) or add a round / edit / remove items on
+/// an existing one (`tab_id = Some`) — see `TabService::open_or_update`.
+/// `source_order_id` set means this tab started from a QR order the cashier
+/// chose to park instead of paying immediately.
+#[tauri::command]
+async fn open_or_update_tab(
+    state: tauri::State<'_, AppState>,
+    tab_id: Option<uuid::Uuid>,
+    table_id: Option<uuid::Uuid>,
+    table_label: Option<String>,
+    customer_label: Option<String>,
+    items: Vec<pos_core::LineItem>,
+    source_order_id: Option<uuid::Uuid>,
+) -> Result<uuid::Uuid, String> {
+    let origin = if source_order_id.is_some() {
+        pos_core::TabOrigin::Qr
+    } else {
+        pos_core::TabOrigin::Manual
+    };
+    state
+        .tab
+        .open_or_update(tab_id, table_id, table_label, customer_label, items, origin, source_order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn list_open_tabs(state: tauri::State<'_, AppState>) -> Result<Vec<pos_core::OpenTab>, String> {
+    state.tab.list_open_tabs().await.map_err(|e| e.to_string())
+}
+
+/// Void a tab: restocks every remaining item and deletes it. For real
+/// cancellations, not settling — see `TabService::cancel_tab`.
+#[tauri::command]
+async fn cancel_tab(state: tauri::State<'_, AppState>, tab_id: uuid::Uuid) -> Result<(), String> {
+    state.tab.cancel_tab(tab_id).await.map_err(|e| e.to_string())
+}
+
+/// Settle an open tab: record the sale via `TransactionService::settle_tab`
+/// (no stock deduction — `TabService` already did that incrementally),
+/// close the local tab row, and — if the tab started from a QR order — also
+/// finalize that order server-side so it stops showing as pending.
+#[tauri::command]
+async fn settle_tab(
+    state: tauri::State<'_, AppState>,
+    tab_id: uuid::Uuid,
+    tx: pos_core::Transaction,
+    source_order_id: Option<uuid::Uuid>,
+) -> Result<pos_core::Transaction, String> {
+    if tx.items.is_empty() || tx.items.iter().any(|i| i.qty <= 0 || i.price <= 0) || tx.total <= 0 {
+        return Err(
+            "items must not be empty, all items must have qty > 0 and price > 0, and total must be > 0"
+                .to_string(),
+        );
+    }
+    state.transactions.settle_tab(tx.clone()).await.map_err(|e| e.to_string())?;
+    state.tab.close_tab(tab_id).await.map_err(|e| e.to_string())?;
+    if let Some(order_id) = source_order_id {
+        state
+            .order
+            .finalize_order(order_id, tx.id)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(tx)
+}
+
 /// Mirrors the validation `crates/pos-terminal/src/api/transactions.rs`
 /// applies before calling `TransactionService::checkout` — duplicated here
 /// because this command is now a second driving adapter for the same use
@@ -289,6 +356,10 @@ pub fn run() {
             list_tables,
             ack_pending_order,
             finalize_pending_order,
+            open_or_update_tab,
+            list_open_tabs,
+            cancel_tab,
+            settle_tab,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

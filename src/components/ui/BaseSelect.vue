@@ -59,14 +59,37 @@ const searchInputRef = ref<HTMLInputElement>()
 // Dropdown positioning (teleported to body)
 const dropdownStyle = ref<Record<string, string>>({})
 
+// Caps the dropdown's height to whatever viewport space is actually
+// available (flipping above the trigger if there's more room there) —
+// without this, a `position: fixed` dropdown taller than the remaining
+// space below the trigger just renders off the bottom edge of the screen.
+// That's invisible AND unreachable (no page scroll in this locked-height
+// app), not just visually clipped — the built-in `overflow-y-auto` on the
+// options list only helps once the dropdown itself fits on screen.
 function updateDropdownPosition() {
   if (!triggerRef.value) return
   const rect = triggerRef.value.getBoundingClientRect()
+  const margin = 8
+  const preferredHeight = 280
+  const spaceBelow = window.innerHeight - rect.bottom - margin
+  const spaceAbove = rect.top - margin
+
+  let top: number
+  let maxHeight: number
+  if (spaceBelow >= 150 || spaceBelow >= spaceAbove) {
+    top = rect.bottom + 4
+    maxHeight = Math.max(100, Math.min(preferredHeight, spaceBelow))
+  } else {
+    maxHeight = Math.max(100, Math.min(preferredHeight, spaceAbove))
+    top = rect.top - 4 - maxHeight
+  }
+
   dropdownStyle.value = {
     position: 'fixed',
-    top: `${rect.bottom + 4}px`,
+    top: `${top}px`,
     left: `${rect.left}px`,
     width: `${rect.width}px`,
+    maxHeight: `${maxHeight}px`,
     zIndex: '9999',
   }
 }
@@ -296,12 +319,12 @@ const containerClasses = computed(() => {
           v-if="isOpen"
           id="select-dropdown-portal"
           :style="dropdownStyle"
-          class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden dark:bg-gray-800 dark:border-gray-700"
+          class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden flex flex-col dark:bg-gray-800 dark:border-gray-700"
         >
           <!-- Search input -->
           <div
             v-if="searchable"
-            class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700"
+            class="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700"
           >
             <Search class="w-4 h-4 text-gray-400 shrink-0 dark:text-gray-500" />
             <input
@@ -316,7 +339,7 @@ const containerClasses = computed(() => {
           </div>
 
           <!-- Options list -->
-          <div class="max-h-60 overflow-y-auto py-1">
+          <div class="flex-1 min-h-0 overflow-y-auto py-1">
             <!-- Loading -->
             <div
               v-if="isLoading && filteredOptions.length === 0"

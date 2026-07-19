@@ -30,7 +30,7 @@ import {
 } from '@lucide/vue'
 import type { SelectOption } from '@/components/ui/BaseSelect.vue'
 import { terminal, onSyncEvent } from '@/lib/terminal'
-import type { Transaction, LineItem, PaymentMethod as ApiPaymentMethod, ModifierOption, PendingOrder } from '@/lib/terminal'
+import type { Transaction, LineItem, PaymentMethod as ApiPaymentMethod, ModifierOption, PendingOrder, OpenTab } from '@/lib/terminal'
 import ModifierPickerModal from '@/components/pos/ModifierPickerModal.vue'
 import type { ModifierGroupWithOptions } from '@/components/pos/ModifierPickerModal.vue'
 import IncomingOrdersModal from '@/components/pos/IncomingOrdersModal.vue'
@@ -133,13 +133,47 @@ async function pollPendingOrders() {
   }
 }
 
+// Open tabs ("pay at the end", see crates/pos-terminal/src/service/tab.rs) —
+// polled alongside pendingOrders since both show up in the same unified
+// "things waiting to be handled" list (IncomingOrdersModal).
+const openTabs = ref<OpenTab[]>([])
+const activeTabId = ref<string | null>(null)
+const activeTabSourceOrderId = ref<string | null>(null)
+const tabNameInput = ref('')
+const openingTab = ref(false)
+const tabError = ref('')
+
+async function pollOpenTabs() {
+  try {
+    openTabs.value = await terminal.listOpenTabs()
+  } catch {
+    // best-effort, same as pollPendingOrders
+  }
+}
+
+// A QR order stays "acknowledged" (not paid) server-side for as long as its
+// tab is open — so it would otherwise keep showing up as its own row too,
+// letting the cashier accidentally park the same order as a second, separate
+// tab. Once an order has a matching open tab (by source_order_id), it's
+// already represented there — hide the original order row.
+const visiblePendingOrders = computed(() => {
+  const parkedOrderIds = new Set(
+    openTabs.value.map((t) => t.source_order_id).filter((id): id is string => id !== null),
+  )
+  return pendingOrders.value.filter((o) => !parkedOrderIds.has(o.id))
+})
+
 let unlistenSync: (() => void) | null = null
 onMounted(async () => {
   await refetch()
   loadPairedPrinters()
   loadTables()
   pollPendingOrders()
-  ordersPollHandle = setInterval(pollPendingOrders, 5000)
+  pollOpenTabs()
+  ordersPollHandle = setInterval(() => {
+    pollPendingOrders()
+    pollOpenTabs()
+  }, 5000)
   // Any peer sync event triggers a full refetch rather than replaying the
   // delta client-side — simpler, and avoids re-implementing
   // SyncService::apply_gossip's logic in TypeScript. Only gossip
@@ -181,6 +215,46 @@ async function selectPendingOrder(order: PendingOrder) {
   // dine-in table select too, instead of leaving it on "Takeaway".
   selectedTableId.value = order.table_id
   pendingOrders.value = pendingOrders.value.filter((o) => o.id !== order.id)
+}
+
+// Tapping an open tab in the unified modal: load its items back into the
+// cart (no ack needed — that's QR-specific and already happened when the
+// order was first parked, see saveTab below) and remember which tab this
+// is so paying calls settleTab instead of a fresh checkout.
+function selectOpenTab(tab: OpenTab) {
+  showIncomingOrders.value = false
+  const byId = new Map(products.value.map((p) => [p.id, p]))
+  cart.value = tab.items.map((item) => {
+    const product = byId.get(item.product_id) ?? {
+      id: item.product_id,
+      name: item.name,
+      price: item.price,
+      category: 'Uncategorized',
+      stock: 0,
+      stale: true,
+    }
+    return { product, qty: item.qty, selectedModifiers: [] }
+  })
+  activeTabId.value = tab.id
+  activeTabSourceOrderId.value = tab.source_order_id
+  selectedTableId.value = tab.table_id ?? TAKEAWAY
+  tabNameInput.value = tab.customer_label ?? ''
+  openTabs.value = openTabs.value.filter((t) => t.id !== tab.id)
+}
+
+async function cancelOpenTab(tabId: string) {
+  try {
+    await terminal.cancelTab(tabId)
+  } catch (e) {
+    tabError.value = e instanceof Error ? e.message : String(e)
+    return
+  }
+  openTabs.value = openTabs.value.filter((t) => t.id !== tabId)
+  if (activeTabId.value === tabId) {
+    activeTabId.value = null
+    activeTabSourceOrderId.value = null
+    cart.value = []
+  }
 }
 
 const activeCategory = ref('All')
@@ -329,9 +403,14 @@ async function printLastReceipt(tx: Transaction, label?: string, tableLabel?: st
 // On-demand extra copy for the buyer — some customers ask for their own
 // receipt in addition to the store/checker copy that already printed
 // automatically at checkout. Reprints the same transaction, labeled so it's
-// clear which copy is which.
+// clear which copy is which. This can be tapped repeatedly (no hard cap), so
+// it's confirmed each time rather than firing immediately — a native
+// `confirm()` isn't reliable inside an Android WebView, hence a BaseModal.
+const showReprintConfirm = ref(false)
+
 async function printCustomerCopy() {
   if (!lastTransaction.value || !selectedPrinterAddress.value || printingCopy.value) return
+  showReprintConfirm.value = false
   printingCopy.value = true
   try {
     await printLastReceipt(lastTransaction.value, 'CUSTOMER COPY', lastTransactionTableLabel.value)
@@ -442,6 +521,38 @@ function openPayment() {
   showPayment.value = true
 }
 
+// Open a new tab, or persist a new round/edit onto the tab currently loaded
+// into the cart — see TabService::open_or_update. Stock is deducted here
+// (per product added, not deferred to settle), so this can fail (e.g. an
+// item's inventory row is gone) — surfaced via tabError, cart left as-is
+// so the cashier can retry rather than losing what they typed.
+async function saveTab() {
+  if (cart.value.length === 0 || openingTab.value) return
+  openingTab.value = true
+  tabError.value = ''
+  try {
+    await terminal.openOrUpdateTab({
+      tabId: activeTabId.value,
+      tableId: selectedTableId.value === TAKEAWAY ? null : selectedTableId.value,
+      tableLabel: selectedTableLabel.value,
+      customerLabel: tabNameInput.value.trim() || null,
+      items: buildLineItems(),
+      sourceOrderId: activeTabId.value ? activeTabSourceOrderId.value : activeOrderId.value,
+    })
+    cart.value = []
+    selectedTableId.value = TAKEAWAY
+    tabNameInput.value = ''
+    activeOrderId.value = null
+    activeTabId.value = null
+    activeTabSourceOrderId.value = null
+    await pollOpenTabs()
+  } catch (e) {
+    tabError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    openingTab.value = false
+  }
+}
+
 // `pos_core::PaymentMethod` doesn't have a 1:1 match with this UI's payment
 // options — debit/credit both collapse to `card`, e-wallet maps to
 // `qris_dynamic` (QRIS is the dominant Indonesian e-wallet rail), bank
@@ -480,17 +591,28 @@ async function completeTransaction() {
   checkingOut.value = true
   checkoutError.value = ''
   try {
+    // If this cart is an open tab, its source order (if any) is carried on
+    // the tab itself — otherwise it's whatever unhandled QR order was
+    // loaded directly (the existing walk-in-pay-now path, unchanged).
+    const sourceOrderId = activeTabId.value ? activeTabSourceOrderId.value : activeOrderId.value
     const tx: Transaction = {
       id: crypto.randomUUID(),
       items: buildLineItems(),
       total: grandTotal.value,
       payment_method: toApiPaymentMethod(paymentMethod.value),
       payment_status: 'paid',
-      order_id: activeOrderId.value,
+      order_id: sourceOrderId,
       paid_ms: Date.now(),
       synced: false,
     }
-    await terminal.checkout(tx)
+    if (activeTabId.value) {
+      // Stock was already deducted incrementally as the tab's items were
+      // added (TabService) — settleTab must not deduct it again, and it
+      // finalizes the source QR order (if any) server-side itself.
+      await terminal.settleTab(activeTabId.value, tx, sourceOrderId)
+    } else {
+      await terminal.checkout(tx)
+    }
     // Refetch immediately so the cashier's own screen reflects the new
     // stock right away — don't wait on the sync-event round trip, that's
     // for picking up *other* terminals' sales.
@@ -500,17 +622,21 @@ async function completeTransaction() {
     await printLastReceipt(tx, 'STORE COPY', selectedTableLabel.value)
     // Best-effort: the local sale is already committed by this point, so a
     // failure here is surfaced but never undoes/blocks the checkout — same
-    // philosophy as receipt printing above.
-    if (activeOrderId.value) {
+    // philosophy as receipt printing above. Only needed for the plain
+    // walk-in-pay-now path; settleTab already finalized the order itself.
+    if (!activeTabId.value && activeOrderId.value) {
       try {
         await terminal.finalizePendingOrder(activeOrderId.value, tx.id)
       } catch (e) {
         checkoutError.value = 'Order finalize failed: ' + (e instanceof Error ? e.message : String(e))
       }
-      activeOrderId.value = null
     }
     cart.value = []
     selectedTableId.value = TAKEAWAY
+    tabNameInput.value = ''
+    activeOrderId.value = null
+    activeTabId.value = null
+    activeTabSourceOrderId.value = null
     cardNumber.value = ''
     cardIssuer.value = ''
     ewalletIssuer.value = ''
@@ -675,10 +801,10 @@ function formatRp(n: number) {
             >
               <ClipboardList class="w-4 h-4" />
               <span
-                v-if="pendingOrders.length > 0"
+                v-if="visiblePendingOrders.length + openTabs.length > 0"
                 class="absolute -top-1.5 -right-1.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[0.5625rem] leading-3.5 text-center"
               >
-                {{ pendingOrders.length }}
+                {{ visiblePendingOrders.length + openTabs.length }}
               </span>
             </button>
             <button
@@ -699,6 +825,12 @@ function formatRp(n: number) {
           :clearable="false"
           size="sm"
           placeholder="Table (dine-in)"
+        />
+        <input
+          v-model="tabNameInput"
+          type="text"
+          placeholder="Tab name (optional)"
+          class="mt-2 w-full text-sm px-2 py-1 border border-gray-300 rounded-md outline-none focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder:text-gray-500"
         />
       </div>
 
@@ -785,11 +917,21 @@ function formatRp(n: number) {
         <BaseButton block :disabled="cart.length === 0" @click="openPayment">
           <CreditCard class="w-4 h-4" /> Pay {{ formatRp(grandTotal) }}
         </BaseButton>
+        <BaseButton
+          block
+          variant="ghost"
+          size="sm"
+          :disabled="cart.length === 0 || openingTab"
+          @click="saveTab"
+        >
+          {{ openingTab ? 'Saving...' : activeTabId ? 'Update Tab' : 'Open Tab' }}
+        </BaseButton>
+        <p v-if="tabError" class="text-xs text-red-600 dark:text-red-400">{{ tabError }}</p>
         <button
           v-if="lastTransaction"
           class="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer dark:text-gray-400"
           :disabled="!selectedPrinterAddress || printingCopy"
-          @click="printCustomerCopy"
+          @click="showReprintConfirm = true"
         >
           <Printer class="w-3.5 h-3.5" />
           {{ printingCopy ? 'Printing...' : 'Print Copy for Customer' }}
@@ -892,8 +1034,11 @@ function formatRp(n: number) {
 
     <IncomingOrdersModal
       v-model="showIncomingOrders"
-      :orders="pendingOrders"
+      :orders="visiblePendingOrders"
+      :tabs="openTabs"
       @select="selectPendingOrder"
+      @select-tab="selectOpenTab"
+      @cancel-tab="cancelOpenTab"
     />
 
     <!-- Printer Picker -->
@@ -932,6 +1077,15 @@ function formatRp(n: number) {
         >
           {{ printerBusy ? 'Printing...' : 'Test Print' }}
         </BaseButton>
+      </template>
+    </BaseModal>
+
+    <!-- Reprint Confirm -->
+    <BaseModal v-model="showReprintConfirm" title="Print Copy for Customer" size="sm">
+      <p class="text-sm text-gray-600 dark:text-gray-400">Print another copy of the last receipt for the customer?</p>
+      <template #footer>
+        <BaseButton variant="ghost" size="sm" @click="showReprintConfirm = false">Cancel</BaseButton>
+        <BaseButton size="sm" @click="printCustomerCopy">Print</BaseButton>
       </template>
     </BaseModal>
   </div>

@@ -116,6 +116,25 @@ export interface Table {
   created_ms: number
 }
 
+export type TabOrigin = 'manual' | 'qr'
+
+// An open tab ("pay at the end") — local to this terminal only, never
+// synced to pos-api. `table_id`/`customer_label` are both optional and
+// independent (a tab can have a table, a name, both, or neither); when
+// both are absent the UI falls back to displaying "Tab #<tab_number>".
+export interface OpenTab {
+  id: string
+  tab_number: number
+  table_id: string | null
+  table_label: string | null
+  customer_label: string | null
+  origin: TabOrigin
+  source_order_id: string | null
+  items: LineItem[]
+  subtotal: number
+  opened_ms: number
+}
+
 export const terminal = {
   listProducts: () => invoke<Product[]>('list_products'),
   listCategories: () => invoke<Category[]>('list_categories'),
@@ -135,6 +154,18 @@ export const terminal = {
   ackPendingOrder: (orderId: string) => invoke<void>('ack_pending_order', { orderId }),
   finalizePendingOrder: (orderId: string, transactionId: string) =>
     invoke<void>('finalize_pending_order', { orderId, transactionId }),
+  openOrUpdateTab: (params: {
+    tabId: string | null
+    tableId: string | null
+    tableLabel: string | null
+    customerLabel: string | null
+    items: LineItem[]
+    sourceOrderId: string | null
+  }) => invoke<string>('open_or_update_tab', params),
+  listOpenTabs: () => invoke<OpenTab[]>('list_open_tabs'),
+  cancelTab: (tabId: string) => invoke<void>('cancel_tab', { tabId }),
+  settleTab: (tabId: string, tx: Transaction, sourceOrderId: string | null) =>
+    invoke<Transaction>('settle_tab', { tabId, tx, sourceOrderId }),
 }
 
 // Mirrors `pos_sync::SyncEvent`'s externally-tagged, snake_case serde shape.

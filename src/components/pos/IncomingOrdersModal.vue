@@ -1,16 +1,55 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { X } from '@lucide/vue'
 import { BaseButton, BaseModal } from '@/components/ui'
-import type { PendingOrder } from '@/lib/terminal'
+import type { PendingOrder, OpenTab } from '@/lib/terminal'
 
-defineProps<{
+const props = defineProps<{
   modelValue: boolean
   orders: PendingOrder[]
+  tabs: OpenTab[]
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   select: [order: PendingOrder]
+  'select-tab': [tab: OpenTab]
+  'cancel-tab': [tabId: string]
 }>()
+
+// QR orders and open tabs are the same lifecycle stage — open, unsettled —
+// just different origins (customer scanned a QR vs. staff opened a tab
+// manually), so they share one list instead of two separate screens/badges.
+type Row =
+  | { kind: 'order'; key: string; label: string; subtotal: number; itemCount: number; sortMs: number; order: PendingOrder }
+  | { kind: 'tab'; key: string; label: string; subtotal: number; itemCount: number; sortMs: number; tab: OpenTab }
+
+const rows = computed<Row[]>(() => {
+  const orderRows: Row[] = props.orders.map((order) => ({
+    kind: 'order',
+    key: `order-${order.id}`,
+    label: order.customer_name || 'Table order',
+    subtotal: order.subtotal,
+    itemCount: order.items.length,
+    sortMs: order.created_ms,
+    order,
+  }))
+  const tabRows: Row[] = props.tabs.map((tab) => ({
+    kind: 'tab',
+    key: `tab-${tab.id}`,
+    label: tab.table_label || tab.customer_label || `Tab #${tab.tab_number}`,
+    subtotal: tab.subtotal,
+    itemCount: tab.items.length,
+    sortMs: tab.opened_ms,
+    tab,
+  }))
+  return [...orderRows, ...tabRows].sort((a, b) => a.sortMs - b.sortMs)
+})
+
+function selectRow(row: Row) {
+  if (row.kind === 'order') emit('select', row.order)
+  else emit('select-tab', row.tab)
+}
 
 function formatRp(n: number) {
   return 'Rp ' + n.toLocaleString('id-ID')
@@ -24,28 +63,48 @@ function formatRp(n: number) {
     size="sm"
     @update:model-value="(v) => emit('update:modelValue', v)"
   >
-    <div v-if="orders.length === 0" class="text-sm text-gray-400 text-center py-6">
-      No pending orders.
+    <div v-if="rows.length === 0" class="text-sm text-gray-400 text-center py-6">
+      Nothing pending.
     </div>
     <div v-else class="space-y-2">
-      <button
-        v-for="order in orders"
-        :key="order.id"
+      <div
+        v-for="row in rows"
+        :key="row.key"
         class="w-full text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-primary-300 hover:shadow-sm transition-all cursor-pointer dark:border-gray-700 dark:hover:border-primary-500"
-        @click="emit('select', order)"
+        @click="selectRow(row)"
       >
         <div class="flex items-center justify-between">
-          <span class="text-sm font-medium text-gray-800 dark:text-gray-200">
-            {{ order.customer_name || `Table order` }}
+          <span class="flex items-center gap-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
+            <span
+              class="text-[0.5625rem] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded"
+              :class="
+                row.kind === 'order'
+                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
+                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+              "
+            >
+              {{ row.kind === 'order' ? 'QR' : 'Tab' }}
+            </span>
+            {{ row.label }}
           </span>
-          <span class="text-sm font-semibold text-primary-600 dark:text-primary-400">{{
-            formatRp(order.subtotal)
-          }}</span>
+          <span class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-primary-600 dark:text-primary-400">{{
+              formatRp(row.subtotal)
+            }}</span>
+            <button
+              v-if="row.kind === 'tab'"
+              class="text-gray-300 hover:text-red-500 cursor-pointer dark:text-gray-600 dark:hover:text-red-400"
+              aria-label="Cancel tab"
+              @click.stop="emit('cancel-tab', row.tab.id)"
+            >
+              <X class="w-3.5 h-3.5" />
+            </button>
+          </span>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          {{ order.items.length }} item{{ order.items.length === 1 ? '' : 's' }}
+          {{ row.itemCount }} item{{ row.itemCount === 1 ? '' : 's' }}
         </p>
-      </button>
+      </div>
     </div>
     <template #footer>
       <BaseButton variant="ghost" size="sm" @click="emit('update:modelValue', false)">Close</BaseButton>
