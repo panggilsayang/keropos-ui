@@ -29,8 +29,10 @@ import {
   Play,
   Clock,
   MapPin,
+  Bell,
 } from '@lucide/vue'
 import type { SelectOption } from '@/components/ui/BaseSelect.vue'
+import { usePosStore, type QrOrder } from '@/stores/pos'
 
 interface VariantOption {
   label: string
@@ -771,6 +773,79 @@ function getTimeSince(timestamp: number) {
 
 const heldOrdersCount = computed(() => heldOrders.value.length)
 
+// ---------------------------------------------------------------------------
+// QR Orders Integration
+// ---------------------------------------------------------------------------
+
+const posStore = usePosStore()
+const showQrOrders = ref(false)
+
+// Simulate an incoming QR order after 3 seconds for demo
+let demoTriggered = false
+setTimeout(() => {
+  if (!demoTriggered) {
+    demoTriggered = true
+    posStore.simulateIncomingOrder()
+  }
+}, 3000)
+
+function acceptQrOrder(order: QrOrder) {
+  posStore.acceptOrder(order.id)
+
+  // Convert QR order items to held order (assign to table)
+  const heldOrder: HeldOrder = {
+    id: order.id,
+    items: order.items.map((item) => ({
+      product: item.product,
+      qty: item.qty,
+      discount: 0,
+      discountType: 'percent' as const,
+      selectedVariants: item.selectedVariants,
+    })),
+    customerType: 'walkin',
+    memberSearch: '',
+    globalDiscount: 0,
+    globalDiscountType: 'percent',
+    appliedVoucher: null,
+    table: order.tableId,
+    label: `${order.customerName} (QR)`,
+    createdAt: order.createdAt,
+    subtotal: order.subtotal,
+  }
+
+  // Merge if table already has an order
+  const existingOrder = getTableOrder(order.tableId)
+  if (existingOrder) {
+    for (const item of heldOrder.items) {
+      const variantKey = item.selectedVariants.map((v) => `${v.name}:${v.option.value}`).join('|')
+      const existing = existingOrder.items.find((c) => {
+        if (c.product.id !== item.product.id) return false
+        return c.selectedVariants.map((v) => `${v.name}:${v.option.value}`).join('|') === variantKey
+      })
+      if (existing) {
+        existing.qty += item.qty
+      } else {
+        existingOrder.items.push({ ...item })
+      }
+    }
+    existingOrder.subtotal = existingOrder.items.reduce((sum, i) => {
+      const extra = i.selectedVariants.reduce((s, v) => s + v.option.extraPrice, 0)
+      return sum + (i.product.price + extra) * i.qty
+    }, 0)
+  } else {
+    heldOrders.value.push(heldOrder)
+  }
+}
+
+function rejectQrOrder(order: QrOrder) {
+  posStore.rejectOrder(order.id)
+}
+
+function openQrOrders() {
+  showQrOrders.value = true
+  posStore.clearUnread()
+}
+
 function formatRp(n: number) {
   return 'Rp ' + n.toLocaleString('id-ID')
 }
@@ -852,17 +927,32 @@ const numpadLabel = computed(() => {
     <div class="flex-1 flex flex-col min-h-0">
       <!-- Search + Categories -->
       <div class="shrink-0 space-y-3 mb-4">
-        <div
-          class="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
-        >
-          <Search class="w-4 h-4 text-gray-400 dark:text-gray-500" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search product..."
-            class="flex-1 outline-none text-sm bg-transparent placeholder:text-gray-400 dark:text-gray-200 dark:placeholder:text-gray-500"
-            @input="currentPage = 1"
-          />
+        <div class="flex items-center gap-2">
+          <div
+            class="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
+          >
+            <Search class="w-4 h-4 text-gray-400 dark:text-gray-500" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search product..."
+              class="flex-1 outline-none text-sm bg-transparent placeholder:text-gray-400 dark:text-gray-200 dark:placeholder:text-gray-500"
+              @input="currentPage = 1"
+            />
+          </div>
+          <!-- QR Orders notification -->
+          <button
+            class="relative flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer transition-colors dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700"
+            @click="openQrOrders"
+          >
+            <Bell class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <span
+              v-if="posStore.unreadCount > 0"
+              class="absolute -top-1 -right-1 w-4.5 h-4.5 bg-red-500 text-white text-[0.6rem] font-bold rounded-full flex items-center justify-center animate-pulse"
+            >
+              {{ posStore.unreadCount }}
+            </span>
+          </button>
         </div>
         <div class="flex gap-2">
           <button
@@ -1480,6 +1570,74 @@ const numpadLabel = computed(() => {
             </BaseButton>
             <BaseButton variant="danger" size="sm" @click="voidOrder(order.id)">
               <Trash2 class="w-3.5 h-3.5" /> Void
+            </BaseButton>
+          </div>
+        </div>
+      </div>
+    </BaseModal>
+
+    <!-- QR Orders Panel -->
+    <BaseModal v-model="showQrOrders" title="QR Orders" size="lg">
+      <div v-if="posStore.allOrders.length === 0" class="py-8 text-center">
+        <Bell class="w-12 h-12 text-gray-300 mx-auto mb-2 dark:text-gray-600" />
+        <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada order dari QR</p>
+      </div>
+      <div v-else class="space-y-3">
+        <div
+          v-for="order in posStore.allOrders"
+          :key="order.id"
+          class="border rounded-lg p-3 transition-colors"
+          :class="
+            order.status === 'pending'
+              ? 'border-amber-300 bg-amber-50/50 dark:border-amber-600 dark:bg-amber-900/10'
+              : order.status === 'accepted'
+                ? 'border-emerald-200 bg-emerald-50/30 dark:border-emerald-700 dark:bg-emerald-900/10'
+                : 'border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-900/20'
+          "
+        >
+          <div class="flex items-start justify-between mb-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ order.customerName }}</p>
+                <BaseBadge
+                  :variant="order.status === 'pending' ? 'warning' : order.status === 'accepted' ? 'success' : 'danger'"
+                  size="sm"
+                >
+                  {{ order.status === 'pending' ? 'Pending' : order.status === 'accepted' ? 'Accepted' : 'Rejected' }}
+                </BaseBadge>
+              </div>
+              <p class="text-xs text-gray-400 dark:text-gray-500">
+                {{ order.id }} · {{ tables.find(t => t.id === order.tableId)?.name }} · {{ getTimeSince(order.createdAt) }}
+              </p>
+            </div>
+            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ formatRp(order.subtotal) }}</p>
+          </div>
+          <!-- Items -->
+          <div class="flex flex-wrap gap-1 mb-3">
+            <span
+              v-for="(item, i) in order.items.slice(0, 5)"
+              :key="i"
+              class="text-[0.625rem] px-1.5 py-0.5 bg-white/80 border border-gray-100 rounded text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400"
+            >
+              {{ item.qty }}x {{ item.product.name }}
+              <template v-if="item.selectedVariants.length > 0">
+                ({{ item.selectedVariants.map(v => v.option.label).join(', ') }})
+              </template>
+            </span>
+            <span
+              v-if="order.items.length > 5"
+              class="text-[0.625rem] px-1.5 py-0.5 bg-gray-100 rounded text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+            >
+              +{{ order.items.length - 5 }} lainnya
+            </span>
+          </div>
+          <!-- Actions for pending -->
+          <div v-if="order.status === 'pending'" class="flex gap-2">
+            <BaseButton variant="success" size="sm" class="flex-1" @click="acceptQrOrder(order)">
+              Accept & Masukkan ke Meja
+            </BaseButton>
+            <BaseButton variant="danger" size="sm" @click="rejectQrOrder(order)">
+              Reject
             </BaseButton>
           </div>
         </div>

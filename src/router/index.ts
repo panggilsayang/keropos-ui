@@ -14,11 +14,13 @@ import invoicesRoutes from './routes/invoices'
 import crmRoutes from './routes/crm'
 import hrmRoutes from './routes/hrm'
 import inventoryRoutes from './routes/inventory'
+import publicRoutes from './routes/public'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     ...authRoutes,
+    ...publicRoutes,
     ...dashboardRoutes,
     ...examplesRoutes,
     ...accountRoutes,
@@ -50,7 +52,8 @@ router.beforeEach(async (to) => {
   }
 
   // If authenticated and trying to access guest-only routes (login/register), redirect to dashboard
-  if (auth.isAuthenticated && isGuestRoute) {
+  // But skip for public routes (accessible by everyone regardless of auth)
+  if (auth.isAuthenticated && isGuestRoute && !to.meta.public) {
     return { name: 'dashboard' }
   }
 })
