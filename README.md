@@ -12,7 +12,7 @@ Modern Vue 3 Admin Dashboard built with TypeScript & Tailwind CSS 4.
   <img src="https://img.shields.io/github/stars/anggagewor/purdia?style=for-the-badge">
   <img src="https://img.shields.io/github/license/anggagewor/purdia?style=for-the-badge">
   <img src="https://img.shields.io/badge/Vue_3-3.5-42b883?style=for-the-badge&logo=vuedotjs&logoColor=white">
-  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
+  <img src="https://img.shields.io/badge/TypeScript-6.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
   <img src="https://img.shields.io/badge/Tailwind-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white">
 </p>
 
@@ -29,6 +29,7 @@ Modern Vue 3 Admin Dashboard built with TypeScript & Tailwind CSS 4.
 - 📦 **Composables** — `useApi`, `usePagination`, `useToast` for clean page logic
 - 🛡️ **Authentication** — Login, Register, Forgot Password with encrypted token storage
 - 📱 **Collapsible Sidebar** — Icon-only mode with flyout popover submenus
+- 📲 **QR Self-Order** — Public mobile menu page, customers scan & order from table
 
 ## 🖥️ Demo & Visuals
 
@@ -122,15 +123,26 @@ npm run dev
 
 ### 🏪 Point of Sale
 
-| Sub-module   | Description                                                                     |
-| ------------ | ------------------------------------------------------------------------------- |
-| Dashboard    | Sales overview and stats                                                        |
-| POS Terminal | Product grid, favorites, inline discounts, multi-payment (Cash, Card, E-Wallet) |
-| Stock        | Product inventory management                                                    |
-| Customers    | Customer database                                                               |
-| Cash Drawer  | Cash management                                                                 |
-| Discounts    | Discount & promo management                                                     |
-| Reports      | Sales reports and analytics                                                     |
+| Sub-module   | Description                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| Dashboard    | Sales overview and stats                                                                          |
+| POS Terminal | Product grid, favorites, inline discounts, multi-payment (Cash, Card, E-Wallet), numpad, hold orders |
+| Stock        | Product inventory management                                                                      |
+| Customers    | Customer database                                                                                 |
+| Cash Drawer  | Cash management                                                                                   |
+| Discounts    | Discount & promo management                                                                       |
+| QR Codes     | Generate & print QR codes per table for customer self-order                                       |
+| Reports      | Sales reports and analytics                                                                       |
+
+#### POS Terminal Features
+
+- **Product Variants** — Size, sugar level, temperature, add-ons, spice level per product
+- **Numpad** — On-screen numpad bound to active input (cash, card number, phone)
+- **Voucher Code** — Apply promo codes with validation and discount stacking
+- **Hold Order** — Save current order for later, resume anytime
+- **Table/Tab System** — Assign orders to 12 tables, auto-merge items on same table
+- **QR Self-Order** — Customers scan QR at table, browse menu, submit order to POS
+- **Order Notifications** — Incoming QR orders appear with accept/reject flow
 
 ### 📒 Accounting
 
@@ -216,7 +228,7 @@ All components live in `src/components/ui/` with full TypeScript props, variants
 | Vue          | 3.5     | Composition API, `<script setup>`               |
 | TypeScript   | 6       | Full type safety                                |
 | Tailwind CSS | 4       | Utility-first styling with CSS variable theming |
-| Pinia        | 3       | State management (auth, theme, toast)           |
+| Pinia        | 3       | State management (auth, theme, toast, pos)      |
 | Vue Router   | 5       | File-based route modules, async guards          |
 | Axios        | 1.x     | HTTP client with interceptors                   |
 | Chart.js     | 4       | Data visualization                              |
@@ -269,13 +281,14 @@ src/
 │   ├── hrm/             # HRM (16 sub-modules, 47 pages)
 │   ├── inventory/       # Inventory (8 sub-modules, 22 pages)
 │   ├── invoices/        # Invoice CRUD + filtered views
-│   ├── pos/             # POS Terminal, Stock, Customers, Reports
+│   ├── pos/             # POS Terminal, Stock, Customers, QR Codes, Reports
 │   ├── projects/        # Kanban board, Task Detail
+│   ├── public/          # Public pages (QR self-order menu, no auth required)
 │   ├── users/           # Users, Roles, Permissions
 │   └── examples/        # Component showcase pages
 ├── router/
-│   └── routes/          # Route modules per feature
-└── stores/              # Pinia stores (auth, theme, toast)
+│   └── routes/          # Route modules per feature (incl. public routes)
+└── stores/              # Pinia stores (auth, theme, toast, pos)
 ```
 
 ## 🤝 Contributing
