@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   BaseButton,
@@ -26,7 +26,9 @@ import {
   ChevronRight,
   Printer,
   Settings,
-  ClipboardList,
+  Ticket,
+  Pause,
+  Clock,
 } from '@lucide/vue'
 import type { SelectOption } from '@/components/ui/BaseSelect.vue'
 import { terminal, onSyncEvent } from '@/lib/terminal'
@@ -34,7 +36,6 @@ import type { Transaction, LineItem, PaymentMethod as ApiPaymentMethod, Modifier
 import ModifierPickerModal from '@/components/pos/ModifierPickerModal.vue'
 import type { ModifierGroupWithOptions } from '@/components/pos/ModifierPickerModal.vue'
 import IncomingOrdersModal from '@/components/pos/IncomingOrdersModal.vue'
-import CashNumpad from '@/components/pos/CashNumpad.vue'
 import { listPairedPrinters, connectPrinter, disconnectPrinter, printReceipt, printTestReceipt, type PairedDevice } from '@/lib/printer'
 import { receiptLines } from '@/lib/receipt'
 
@@ -63,6 +64,8 @@ interface CartItem {
   product: Product
   qty: number
   selectedModifiers: ModifierOption[]
+  discount: number
+  discountType: 'nominal' | 'percent'
 }
 
 const productsRaw = ref<Awaited<ReturnType<typeof terminal.listProducts>>>([])
@@ -208,7 +211,7 @@ async function selectPendingOrder(order: PendingOrder) {
       stock: 0,
       stale: true,
     }
-    return { product, qty: item.qty, selectedModifiers: [] }
+    return { product, qty: item.qty, selectedModifiers: [], discount: 0, discountType: 'percent' as const }
   })
   activeOrderId.value = order.id
   // The order came from a real table's QR code — reflect that on the
@@ -233,7 +236,7 @@ function selectOpenTab(tab: OpenTab) {
       stock: 0,
       stale: true,
     }
-    return { product, qty: item.qty, selectedModifiers: [] }
+    return { product, qty: item.qty, selectedModifiers: [], discount: 0, discountType: 'percent' as const }
   })
   activeTabId.value = tab.id
   activeTabSourceOrderId.value = tab.source_order_id
@@ -334,6 +337,73 @@ async function loadTables() {
     // just means the picker only offers "Takeaway", not a crash.
   }
 }
+
+// Voucher / Promo Code
+interface Voucher {
+  code: string
+  description: string
+  discountType: 'percent' | 'nominal'
+  discountValue: number
+  minPurchase: number
+  maxDiscount?: number // max potongan untuk type percent
+}
+
+const availableVouchers: Voucher[] = [
+  { code: 'HEMAT10', description: 'Diskon 10%', discountType: 'percent', discountValue: 10, minPurchase: 50000, maxDiscount: 20000 },
+  { code: 'MAKAN20K', description: 'Potongan Rp 20.000', discountType: 'nominal', discountValue: 20000, minPurchase: 80000 },
+  { code: 'NEWUSER', description: 'Diskon 15% New User', discountType: 'percent', discountValue: 15, minPurchase: 30000, maxDiscount: 25000 },
+  { code: 'JUMAT50', description: 'Potongan Rp 50.000', discountType: 'nominal', discountValue: 50000, minPurchase: 150000 },
+  { code: 'KOPI5K', description: 'Potongan Rp 5.000', discountType: 'nominal', discountValue: 5000, minPurchase: 20000 },
+]
+
+const voucherCode = ref('')
+const appliedVoucher = ref<Voucher | null>(null)
+const voucherError = ref('')
+const globalDiscount = ref(0)
+const globalDiscountType = ref<'nominal' | 'percent'>('percent')
+const customerType = ref<string | number>('walkin')
+const customerName = ref('')
+const memberSearch = ref<string | number>('')
+
+function applyVoucher() {
+  voucherError.value = ''
+
+  if (!voucherCode.value.trim()) {
+    voucherError.value = 'Masukkan kode voucher'
+    return
+  }
+
+  const code = voucherCode.value.trim().toUpperCase()
+  const voucher = availableVouchers.find((v) => v.code === code)
+
+  if (!voucher) {
+    voucherError.value = 'Kode voucher tidak ditemukan'
+    return
+  }
+
+  if (subtotal.value < voucher.minPurchase) {
+    voucherError.value = `Minimum belanja ${formatRp(voucher.minPurchase)}`
+    return
+  }
+
+  appliedVoucher.value = voucher
+  voucherCode.value = ''
+}
+
+function removeVoucher() {
+  appliedVoucher.value = null
+  voucherError.value = ''
+}
+
+const voucherDiscountAmount = computed(() => {
+  if (!appliedVoucher.value) return 0
+  const afterGlobalDiscount = subtotal.value - globalDiscountAmount.value
+  if (appliedVoucher.value.discountType === 'percent') {
+    const raw = (afterGlobalDiscount * appliedVoucher.value.discountValue) / 100
+    return appliedVoucher.value.maxDiscount ? Math.min(raw, appliedVoucher.value.maxDiscount) : raw
+  }
+  return Math.min(appliedVoucher.value.discountValue, afterGlobalDiscount)
+})
 
 // Payment
 const showPayment = ref(false)
@@ -459,7 +529,7 @@ function addToCart(product: Product, selectedModifiers: ModifierOption[] = []) {
   if (existing) {
     existing.qty++
   } else {
-    cart.value.push({ product, qty: 1, selectedModifiers })
+    cart.value.push({ product, qty: 1, selectedModifiers, discount: 0, discountType: 'percent' })
   }
 }
 
@@ -491,6 +561,7 @@ function onModifierConfirm(selected: ModifierOption[]) {
   }
 }
 
+
 function updateQty(idx: number, delta: number) {
   const item = cart.value[idx]
   if (!item) return
@@ -507,12 +578,21 @@ function modifierDelta(item: CartItem) {
 }
 
 function getItemTotal(item: CartItem) {
-  return (item.product.price + modifierDelta(item)) * item.qty
+  const base = (item.product.price + modifierDelta(item)) * item.qty
+  if (item.discount <= 0) return base
+  if (item.discountType === 'percent') return base - (base * item.discount) / 100
+  return base - item.discount
 }
 
 const subtotal = computed(() => cart.value.reduce((sum, item) => sum + getItemTotal(item), 0))
 
-const grandTotal = computed(() => subtotal.value)
+const globalDiscountAmount = computed(() => {
+  if (globalDiscount.value <= 0) return 0
+  if (globalDiscountType.value === 'percent') return (subtotal.value * globalDiscount.value) / 100
+  return globalDiscount.value
+})
+
+const grandTotal = computed(() => Math.max(0, subtotal.value - globalDiscountAmount.value - voucherDiscountAmount.value))
 const change = computed(() => Math.max(0, cashReceived.value - grandTotal.value))
 
 function openPayment() {
@@ -637,6 +717,13 @@ async function completeTransaction() {
     activeOrderId.value = null
     activeTabId.value = null
     activeTabSourceOrderId.value = null
+    globalDiscount.value = 0
+    appliedVoucher.value = null
+    voucherCode.value = ''
+    voucherError.value = ''
+    customerType.value = 'walkin'
+    customerName.value = ''
+    memberSearch.value = ''
     cardNumber.value = ''
     cardIssuer.value = ''
     ewalletIssuer.value = ''
@@ -649,9 +736,80 @@ async function completeTransaction() {
   }
 }
 
+
 function formatRp(n: number) {
   return 'Rp ' + n.toLocaleString('id-ID')
 }
+
+// Numpad
+const cashInput = ref<HTMLInputElement | null>(null)
+const numpadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'backspace'] as const
+
+// Active numpad field — determines which input the numpad binds to
+type NumpadField = 'cash' | 'card' | 'phone'
+const activeNumpadField = ref<NumpadField>('cash')
+
+// Auto-set active field based on payment method
+watch(() => paymentMethod.value, (method) => {
+  if (method === 'cash') activeNumpadField.value = 'cash'
+  else if (method === 'debit' || method === 'credit') activeNumpadField.value = 'card'
+  else if (method === 'ewallet') activeNumpadField.value = 'phone'
+}, { immediate: true })
+
+const quickAmounts = computed(() => {
+  const total = grandTotal.value
+  const amounts = new Set<number>()
+  const roundUp = (n: number, step: number) => Math.ceil(n / step) * step
+  amounts.add(total)
+  amounts.add(roundUp(total, 10000))
+  amounts.add(roundUp(total, 50000))
+  amounts.add(roundUp(total, 100000))
+  return [...amounts].filter((a) => a >= total).sort((a, b) => a - b).slice(0, 4)
+})
+
+function handleNumpad(key: string) {
+  if (activeNumpadField.value === 'cash') {
+    const current = String(cashReceived.value || '')
+    if (key === 'backspace') {
+      const next = current.slice(0, -1)
+      cashReceived.value = Number(next) || 0
+    } else {
+      cashReceived.value = Number(current + key) || 0
+    }
+  } else if (activeNumpadField.value === 'card') {
+    if (key === 'backspace') {
+      cardNumber.value = cardNumber.value.slice(0, -1)
+    } else {
+      // Auto-format card number with spaces every 4 digits
+      const raw = cardNumber.value.replace(/\s/g, '')
+      if (raw.length < 16) {
+        const newRaw = raw + key
+        cardNumber.value = newRaw.replace(/(\d{4})(?=\d)/g, '$1 ')
+      }
+    }
+  } else if (activeNumpadField.value === 'phone') {
+    if (key === 'backspace') {
+      ewalletPhone.value = ewalletPhone.value.slice(0, -1)
+    } else {
+      if (ewalletPhone.value.length < 15) {
+        ewalletPhone.value += key
+      }
+    }
+  }
+}
+
+function getNumpadKeyClass(key: string) {
+  if (key === 'backspace') {
+    return 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'
+  }
+  return 'bg-white text-gray-800 border border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700'
+}
+
+const numpadLabel = computed(() => {
+  if (activeNumpadField.value === 'cash') return 'Cash Amount'
+  if (activeNumpadField.value === 'card') return 'Card Number'
+  return 'Phone Number'
+})
 </script>
 
 <template>
@@ -779,7 +937,7 @@ function formatRp(n: number) {
 
     <!-- Right: Cart -->
     <div
-      class="w-72 shrink-0 bg-white border border-gray-200 rounded-xl flex flex-col min-h-0 dark:bg-gray-800 dark:border-gray-700"
+      class="w-72 shrink-0 bg-white border border-gray-200 rounded-xl flex flex-col min-h-0 overflow-y-auto dark:bg-gray-800 dark:border-gray-700"
     >
       <!-- Cart Header -->
       <div class="px-4 py-3 border-b border-gray-100 shrink-0 dark:border-gray-700">
@@ -795,14 +953,15 @@ function formatRp(n: number) {
               <Printer class="w-4 h-4" />
             </button>
             <button
-              class="relative cursor-pointer text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400"
+              class="relative flex items-center gap-1 text-xs text-gray-500 hover:text-primary-600 cursor-pointer transition-colors dark:text-gray-400 dark:hover:text-primary-400"
               aria-label="Incoming orders"
               @click="showIncomingOrders = true"
             >
-              <ClipboardList class="w-4 h-4" />
+              <Clock class="w-3.5 h-3.5" />
+              <span>Held Orders</span>
               <span
                 v-if="visiblePendingOrders.length + openTabs.length > 0"
-                class="absolute -top-1.5 -right-1.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[0.5625rem] leading-3.5 text-center"
+                class="absolute -top-1.5 -right-2.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[0.5625rem] leading-3.5 text-center"
               >
                 {{ visiblePendingOrders.length + openTabs.length }}
               </span>
@@ -902,10 +1061,75 @@ function formatRp(n: number) {
 
       <!-- Cart Footer -->
       <div class="shrink-0 border-t border-gray-100 px-4 py-3 space-y-2 dark:border-gray-700">
+        <div v-if="false" class="space-y-2">
+        <div class="flex items-center gap-2">
+          <Tag class="w-4 h-4 text-gray-400 dark:text-gray-500" />
+          <input
+            v-model.number="globalDiscount"
+            type="number"
+            min="0"
+            class="flex-1 text-sm border border-gray-200 rounded px-2 py-1 outline-none focus:border-primary-500 w-20 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            placeholder="Discount"
+          />
+          <select
+            v-model="globalDiscountType"
+            class="text-xs border border-gray-200 rounded px-2 py-1 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+          >
+            <option value="percent">%</option>
+            <option value="nominal">Rp</option>
+          </select>
+        </div>
+        <!-- Voucher Code -->
+        <div v-if="!appliedVoucher" class="flex items-center gap-2">
+          <Ticket class="w-4 h-4 text-gray-400 dark:text-gray-500" />
+          <input
+            v-model="voucherCode"
+            type="text"
+            class="flex-1 text-sm border border-gray-200 rounded px-2 py-1 outline-none focus:border-primary-500 uppercase placeholder:normal-case dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            placeholder="Kode voucher"
+            @keyup.enter="applyVoucher"
+          />
+          <button
+            class="text-xs font-medium px-2.5 py-1 rounded bg-primary-500 text-white hover:bg-primary-600 transition-colors cursor-pointer"
+            @click="applyVoucher"
+          >
+            Apply
+          </button>
+        </div>
+        <p v-if="voucherError" class="text-[0.625rem] text-red-500 dark:text-red-400 pl-6">{{ voucherError }}</p>
+        <!-- Applied voucher -->
+        <div v-if="appliedVoucher" class="flex items-center gap-2 px-2 py-1.5 bg-emerald-50 rounded-md dark:bg-emerald-900/20">
+          <Ticket class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-medium text-emerald-700 dark:text-emerald-300">{{ appliedVoucher?.code }}</p>
+            <p class="text-[0.625rem] text-emerald-600 dark:text-emerald-400">{{ appliedVoucher?.description }}</p>
+          </div>
+          <button
+            class="text-gray-400 hover:text-red-500 cursor-pointer dark:text-gray-500 dark:hover:text-red-400"
+            @click="removeVoucher"
+          >
+            <X class="w-3.5 h-3.5" />
+          </button>
+        </div>
+        </div>
         <div class="space-y-1 text-sm">
           <div class="flex justify-between text-gray-500 dark:text-gray-400">
             <span>Subtotal</span>
             <span>{{ formatRp(subtotal) }}</span>
+          </div>
+          <div
+            v-if="globalDiscountAmount > 0"
+            class="flex justify-between text-amber-600 dark:text-amber-400"
+          >
+            <span>Discount</span>
+            <span>-{{ formatRp(globalDiscountAmount) }}</span>
+          </div>
+          <div
+            v-if="voucherDiscountAmount > 0"
+            class="flex justify-between text-emerald-600 dark:text-emerald-400"
+          >
+            <span>Voucher ({{ appliedVoucher?.code }})</span>
+            <span>-{{ formatRp(voucherDiscountAmount) }}</span>
           </div>
           <div
             class="flex justify-between text-lg font-bold text-gray-900 pt-1 border-t border-gray-100 dark:text-gray-100 dark:border-gray-700"
@@ -914,18 +1138,19 @@ function formatRp(n: number) {
             <span>{{ formatRp(grandTotal) }}</span>
           </div>
         </div>
-        <BaseButton block :disabled="cart.length === 0" @click="openPayment">
-          <CreditCard class="w-4 h-4" /> Pay {{ formatRp(grandTotal) }}
-        </BaseButton>
-        <BaseButton
-          block
-          variant="ghost"
-          size="sm"
-          :disabled="cart.length === 0 || openingTab"
-          @click="saveTab"
-        >
-          {{ openingTab ? 'Saving...' : activeTabId ? 'Update Tab' : 'Open Tab' }}
-        </BaseButton>
+        <div class="flex gap-2">
+          <BaseButton
+            variant="outline"
+            class="flex-1"
+            :disabled="cart.length === 0 || openingTab"
+            @click="saveTab"
+          >
+            <Pause class="w-4 h-4" /> {{ openingTab ? 'Saving...' : activeTabId ? 'Update' : 'Hold' }}
+          </BaseButton>
+          <BaseButton class="flex-[2]" :disabled="cart.length === 0" @click="openPayment">
+            <CreditCard class="w-4 h-4" /> Pay {{ formatRp(grandTotal) }}
+          </BaseButton>
+        </div>
         <p v-if="tabError" class="text-xs text-red-600 dark:text-red-400">{{ tabError }}</p>
         <button
           v-if="lastTransaction"
@@ -940,75 +1165,112 @@ function formatRp(n: number) {
     </div>
 
     <!-- Payment Modal -->
-    <BaseModal v-model="showPayment" title="Payment" size="sm">
-      <div class="space-y-4">
-        <div class="text-center py-2">
-          <p class="text-xs text-gray-500 dark:text-gray-400">Total Amount</p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {{ formatRp(grandTotal) }}
-          </p>
-        </div>
-        <BaseSelect
-          v-model="paymentMethod"
-          label="Payment Method"
-          :options="paymentOptions"
-          :searchable="false"
-        />
-        <div v-if="paymentMethod === 'cash'">
-          <label class="text-sm font-medium text-gray-700 block mb-1 dark:text-gray-300"
-            >Cash Received</label
-          >
-          <p class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            {{ formatRp(cashReceived) }}
-          </p>
-          <CashNumpad v-model="cashReceived" />
-          <div
-            v-if="change > 0"
-            class="mt-2 p-2 bg-emerald-50 rounded-md text-center dark:bg-emerald-900/20"
-          >
-            <p class="text-xs text-emerald-600 dark:text-emerald-400">Change</p>
-            <p class="text-lg font-bold text-emerald-700 dark:text-emerald-300">
-              {{ formatRp(change) }}
+    <BaseModal v-model="showPayment" title="Payment" size="lg">
+      <div class="flex gap-6">
+        <!-- Left: Payment Form -->
+        <div class="flex-1 space-y-4 min-w-0">
+          <div class="text-center py-2">
+            <p class="text-xs text-gray-500 dark:text-gray-400">Total Amount</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {{ formatRp(grandTotal) }}
             </p>
           </div>
-        </div>
-        <div v-if="paymentMethod === 'debit' || paymentMethod === 'credit'" class="space-y-3">
           <BaseSelect
-            v-model="cardIssuer"
-            label="Card Issuer"
-            :options="cardIssuerOptions"
-            placeholder="Select bank / issuer..."
+            v-model="paymentMethod"
+            label="Payment Method"
+            :options="paymentOptions"
+            :searchable="false"
           />
-          <div>
+          <div v-if="paymentMethod === 'cash'">
             <label class="text-sm font-medium text-gray-700 block mb-1 dark:text-gray-300"
-              >Card Number</label
+              >Cash Received</label
             >
             <input
-              v-model="cardNumber"
-              type="text"
-              placeholder="**** **** **** ****"
-              maxlength="19"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 font-mono dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-900/30"
+              ref="cashInput"
+              v-model.number="cashReceived"
+              type="number"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-900/30"
+              @focus="activeNumpadField = 'cash'"
             />
+            <div
+              v-if="change > 0"
+              class="mt-2 p-2 bg-emerald-50 rounded-md text-center dark:bg-emerald-900/20"
+            >
+              <p class="text-xs text-emerald-600 dark:text-emerald-400">Change</p>
+              <p class="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                {{ formatRp(change) }}
+              </p>
+            </div>
+          </div>
+          <div v-if="paymentMethod === 'debit' || paymentMethod === 'credit'" class="space-y-3">
+            <BaseSelect
+              v-model="cardIssuer"
+              label="Card Issuer"
+              :options="cardIssuerOptions"
+              placeholder="Select bank / issuer..."
+            />
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1 dark:text-gray-300"
+                >Card Number</label
+              >
+              <input
+                v-model="cardNumber"
+                type="text"
+                placeholder="**** **** **** ****"
+                maxlength="19"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 font-mono dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-900/30"
+                @focus="activeNumpadField = 'card'"
+              />
+            </div>
+          </div>
+          <div v-if="paymentMethod === 'ewallet'" class="space-y-3">
+            <BaseSelect
+              v-model="ewalletIssuer"
+              label="E-Wallet"
+              :options="ewalletIssuerOptions"
+              placeholder="Select e-wallet..."
+            />
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1 dark:text-gray-300"
+                >Phone Number</label
+              >
+              <input
+                v-model="ewalletPhone"
+                type="tel"
+                placeholder="08xxxxxxxxxx"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-900/30"
+                @focus="activeNumpadField = 'phone'"
+              />
+            </div>
           </div>
         </div>
-        <div v-if="paymentMethod === 'ewallet'" class="space-y-3">
-          <BaseSelect
-            v-model="ewalletIssuer"
-            label="E-Wallet"
-            :options="ewalletIssuerOptions"
-            placeholder="Select e-wallet..."
-          />
-          <div>
-            <label class="text-sm font-medium text-gray-700 block mb-1 dark:text-gray-300"
-              >Phone Number</label
+
+        <!-- Right: Numpad (always visible) -->
+        <div
+          class="w-56 shrink-0 bg-gray-50 rounded-xl p-3 flex flex-col gap-2 dark:bg-gray-900/50"
+        >
+          <p class="text-xs font-medium text-gray-500 text-center mb-1 dark:text-gray-400">{{ numpadLabel }}</p>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="key in numpadKeys"
+              :key="key"
+              class="h-11 rounded-lg font-semibold text-lg transition-all cursor-pointer select-none active:scale-95"
+              :class="getNumpadKeyClass(key)"
+              @click="handleNumpad(key)"
             >
-            <input
-              v-model="ewalletPhone"
-              type="tel"
-              placeholder="08xxxxxxxxxx"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-900/30"
-            />
+              {{ key === 'backspace' ? '⌫' : key }}
+            </button>
+          </div>
+          <!-- Quick amounts for cash only -->
+          <div v-if="paymentMethod === 'cash'" class="flex flex-wrap gap-1.5 mt-2">
+            <button
+              v-for="amount in quickAmounts"
+              :key="amount"
+              class="flex-1 min-w-[calc(50%-0.25rem)] px-2 py-1.5 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors cursor-pointer text-center dark:border-gray-600 dark:text-gray-300 dark:hover:bg-primary-900/30 dark:hover:border-primary-500 dark:hover:text-primary-300"
+              @click="cashReceived = amount"
+            >
+              {{ formatRp(amount) }}
+            </button>
           </div>
         </div>
         <p v-if="checkoutError" class="text-sm text-red-600 dark:text-red-400">
@@ -1028,6 +1290,8 @@ function formatRp(n: number) {
     <ModifierPickerModal
       v-model="showModifierPicker"
       :product-name="modifierPickerProduct?.name ?? ''"
+      :product-price="modifierPickerProduct?.price"
+      :product-category="modifierPickerProduct?.category"
       :groups="modifierPickerGroups"
       @confirm="onModifierConfirm"
     />
@@ -1088,5 +1352,6 @@ function formatRp(n: number) {
         <BaseButton size="sm" @click="printCustomerCopy">Print</BaseButton>
       </template>
     </BaseModal>
+
   </div>
 </template>

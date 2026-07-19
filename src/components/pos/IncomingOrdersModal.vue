@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { X } from '@lucide/vue'
-import { BaseButton, BaseModal } from '@/components/ui'
-import type { PendingOrder, OpenTab } from '@/lib/terminal'
+import { Clock, MapPin, Play, X } from '@lucide/vue'
+import { BaseBadge, BaseButton, BaseModal } from '@/components/ui'
+import type { PendingOrder, OpenTab, PendingOrderItem, LineItem } from '@/lib/terminal'
 
 const props = defineProps<{
   modelValue: boolean
@@ -21,34 +21,61 @@ const emit = defineEmits<{
 // just different origins (customer scanned a QR vs. staff opened a tab
 // manually), so they share one list instead of two separate screens/badges.
 type Row =
-  | { kind: 'order'; key: string; label: string; subtotal: number; itemCount: number; sortMs: number; order: PendingOrder }
-  | { kind: 'tab'; key: string; label: string; subtotal: number; itemCount: number; sortMs: number; tab: OpenTab }
+  | {
+      kind: 'order'
+      key: string
+      label: string
+      tableLabel: string | null
+      subtotal: number
+      items: PendingOrderItem[]
+      createdMs: number
+      order: PendingOrder
+    }
+  | {
+      kind: 'tab'
+      key: string
+      label: string
+      tableLabel: string | null
+      subtotal: number
+      items: LineItem[]
+      createdMs: number
+      tab: OpenTab
+    }
 
 const rows = computed<Row[]>(() => {
   const orderRows: Row[] = props.orders.map((order) => ({
     kind: 'order',
     key: `order-${order.id}`,
     label: order.customer_name || 'Table order',
+    tableLabel: null,
     subtotal: order.subtotal,
-    itemCount: order.items.length,
-    sortMs: order.created_ms,
+    items: order.items,
+    createdMs: order.created_ms,
     order,
   }))
   const tabRows: Row[] = props.tabs.map((tab) => ({
     kind: 'tab',
     key: `tab-${tab.id}`,
-    label: tab.table_label || tab.customer_label || `Tab #${tab.tab_number}`,
+    label: tab.customer_label || tab.table_label || `Tab #${tab.tab_number}`,
+    tableLabel: tab.table_label,
     subtotal: tab.subtotal,
-    itemCount: tab.items.length,
-    sortMs: tab.opened_ms,
+    items: tab.items,
+    createdMs: tab.opened_ms,
     tab,
   }))
-  return [...orderRows, ...tabRows].sort((a, b) => a.sortMs - b.sortMs)
+  return [...orderRows, ...tabRows].sort((a, b) => a.createdMs - b.createdMs)
 })
 
 function selectRow(row: Row) {
   if (row.kind === 'order') emit('select', row.order)
   else emit('select-tab', row.tab)
+}
+
+function getTimeSince(ms: number) {
+  const diff = Math.floor((Date.now() - ms) / 60000)
+  if (diff < 1) return 'Baru saja'
+  if (diff < 60) return `${diff} menit lalu`
+  return `${Math.floor(diff / 60)} jam lalu`
 }
 
 function formatRp(n: number) {
@@ -59,51 +86,65 @@ function formatRp(n: number) {
 <template>
   <BaseModal
     :model-value="modelValue"
-    title="Incoming Orders"
-    size="sm"
+    title="Held Orders"
+    size="lg"
     @update:model-value="(v) => emit('update:modelValue', v)"
   >
-    <div v-if="rows.length === 0" class="text-sm text-gray-400 text-center py-6">
-      Nothing pending.
+    <div v-if="rows.length === 0" class="py-8 text-center">
+      <Clock class="w-12 h-12 text-gray-300 mx-auto mb-2 dark:text-gray-600" />
+      <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada order yang di-hold</p>
     </div>
-    <div v-else class="space-y-2">
+    <div v-else class="space-y-3">
       <div
         v-for="row in rows"
         :key="row.key"
-        class="w-full text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-primary-300 hover:shadow-sm transition-all cursor-pointer dark:border-gray-700 dark:hover:border-primary-500"
-        @click="selectRow(row)"
+        class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition-colors dark:border-gray-700 dark:hover:border-gray-600"
       >
-        <div class="flex items-center justify-between">
-          <span class="flex items-center gap-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
-            <span
-              class="text-[0.5625rem] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded"
-              :class="
-                row.kind === 'order'
-                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
-                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-              "
-            >
-              {{ row.kind === 'order' ? 'QR' : 'Tab' }}
-            </span>
-            {{ row.label }}
+        <div class="flex items-start justify-between mb-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ row.label }}</p>
+              <BaseBadge :variant="row.kind === 'order' ? 'success' : 'info'" size="sm">
+                {{ row.kind === 'order' ? 'QR' : 'Tab' }}
+              </BaseBadge>
+              <BaseBadge v-if="row.tableLabel" variant="warning" size="sm">
+                <MapPin class="w-3 h-3" /> {{ row.tableLabel }}
+              </BaseBadge>
+            </div>
+            <p class="text-xs text-gray-400 dark:text-gray-500">{{ getTimeSince(row.createdMs) }}</p>
+          </div>
+          <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ formatRp(row.subtotal) }}</p>
+        </div>
+        <!-- Items preview -->
+        <div class="flex flex-wrap gap-1 mb-3">
+          <span
+            v-for="(item, i) in row.items.slice(0, 4)"
+            :key="i"
+            class="text-[0.625rem] px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+          >
+            {{ item.qty }}x {{ item.name }}
           </span>
-          <span class="flex items-center gap-2">
-            <span class="text-sm font-semibold text-primary-600 dark:text-primary-400">{{
-              formatRp(row.subtotal)
-            }}</span>
-            <button
-              v-if="row.kind === 'tab'"
-              class="text-gray-300 hover:text-red-500 cursor-pointer dark:text-gray-600 dark:hover:text-red-400"
-              aria-label="Cancel tab"
-              @click.stop="emit('cancel-tab', row.tab.id)"
-            >
-              <X class="w-3.5 h-3.5" />
-            </button>
+          <span
+            v-if="row.items.length > 4"
+            class="text-[0.625rem] px-1.5 py-0.5 bg-gray-100 rounded text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+          >
+            +{{ row.items.length - 4 }} lainnya
           </span>
         </div>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          {{ row.itemCount }} item{{ row.itemCount === 1 ? '' : 's' }}
-        </p>
+        <!-- Actions -->
+        <div class="flex gap-2">
+          <BaseButton variant="primary" size="sm" class="flex-1" @click="selectRow(row)">
+            <Play class="w-3.5 h-3.5" /> Lanjutkan
+          </BaseButton>
+          <BaseButton
+            v-if="row.kind === 'tab'"
+            variant="danger"
+            size="sm"
+            @click.stop="emit('cancel-tab', row.tab.id)"
+          >
+            <X class="w-3.5 h-3.5" /> Cancel
+          </BaseButton>
+        </div>
       </div>
     </div>
     <template #footer>

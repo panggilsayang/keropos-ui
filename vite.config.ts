@@ -6,6 +6,8 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
 import compression from 'vite-plugin-compression'
 
+
+const host = process.env.TAURI_DEV_HOST
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), vueDevTools(), tailwindcss(), compression({ algorithm: 'gzip', ext: '.gz' })],
@@ -13,6 +15,18 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  server: {
+    host: host || false,
+    port: 5173,
+    strictPort: true,
+    hmr: host
+      ? {
+          protocol: 'ws',
+          host,
+          port: 5183,
+        }
+      : undefined,
   },
   build: {
     minify: 'terser',

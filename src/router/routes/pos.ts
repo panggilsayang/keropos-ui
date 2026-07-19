@@ -41,6 +41,11 @@ const routes: RouteRecordRaw[] = [
     name: 'pos-reports',
     component: () => import('@/pages/pos/PosReport.vue'),
   },
+  {
+    path: '/pos/qr-codes',
+    name: 'pos-qr-codes',
+    component: () => import('@/pages/pos/PosQrCodes.vue'),
+  },
 ]
 
 export default routes
