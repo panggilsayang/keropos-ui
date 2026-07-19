@@ -79,6 +79,43 @@ export interface Transaction {
   synced: boolean
 }
 
+export interface ServerSettings {
+  server_url: string
+  store_id: string
+}
+
+// Pending orders placed via a table's QR menu (handled by the separate
+// pos-api/pos-web stack — not touched here, just consumed). `pull_pending`
+// on the Rust side already talks to pos-api; these mirror its response
+// shape after the Tauri command's JSON-string `items` field is parsed.
+export interface PendingOrderItem {
+  product_id: string
+  name: string
+  price: number
+  qty: number
+}
+
+export interface PendingOrder {
+  id: string
+  table_id: string
+  customer_name: string | null
+  items: PendingOrderItem[]
+  subtotal: number
+  status: string
+  created_ms: number
+}
+
+// A store's real tables (`pos_core::Table`) — same data QR ordering uses.
+// Backs the dine-in/takeaway picker in PosTerminal.vue; matches
+// apps/pos-web's "Table (dine-in)" dropdown (no fake member data).
+export interface Table {
+  id: string
+  store_id: string
+  label: string
+  qr_token: string
+  created_ms: number
+}
+
 export const terminal = {
   listProducts: () => invoke<Product[]>('list_products'),
   listCategories: () => invoke<Category[]>('list_categories'),
@@ -90,6 +127,14 @@ export const terminal = {
   getProductModifierGroups: (productId: string) =>
     invoke<[string, number][]>('get_product_modifier_groups', { productId }),
   checkout: (tx: Transaction) => invoke<Transaction>('checkout', { tx }),
+  getServerSettings: () => invoke<ServerSettings>('get_server_settings'),
+  saveServerSettings: (serverUrl: string, storeId: string) =>
+    invoke<void>('save_server_settings', { serverUrl, storeId }),
+  listPendingOrders: () => invoke<PendingOrder[]>('list_pending_orders'),
+  listTables: () => invoke<Table[]>('list_tables'),
+  ackPendingOrder: (orderId: string) => invoke<void>('ack_pending_order', { orderId }),
+  finalizePendingOrder: (orderId: string, transactionId: string) =>
+    invoke<void>('finalize_pending_order', { orderId, transactionId }),
 }
 
 // Mirrors `pos_sync::SyncEvent`'s externally-tagged, snake_case serde shape.

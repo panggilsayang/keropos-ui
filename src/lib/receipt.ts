@@ -10,10 +10,13 @@ function money(n: number): string {
 // `label` distinguishes the store/checker copy (printed automatically on
 // checkout) from an extra customer copy (printed on demand, when the buyer
 // asks for one after the fact) — same transaction, same lines, just a
-// header so whoever's holding the paper knows which copy it is.
-export function receiptLines(tx: Transaction, label?: string): string[] {
+// header so whoever's holding the paper knows which copy it is. `tableLabel`
+// mirrors apps/pos-web/src/pages/pos/components/receipt.ts's dine-in table
+// line — null/omitted for a takeaway sale.
+export function receiptLines(tx: Transaction, label?: string, tableLabel?: string | null): string[] {
   const lines = ['Purdia POS', '----------------------------']
   if (label) lines.push(`-- ${label} --`)
+  if (tableLabel) lines.push(`Table: ${tableLabel}`)
   for (const it of tx.items) {
     lines.push(`${it.name} x${it.qty}  ${money(it.price * it.qty)}`)
   }

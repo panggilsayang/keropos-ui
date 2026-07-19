@@ -26,6 +26,12 @@ const isAndroidTerminal = computed(() => isTauri())
   <div
     v-else-if="isAndroidTerminal"
     class="h-screen w-screen overflow-hidden p-3 dark:bg-gray-900"
+    :style="{
+      paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+      paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+      paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
+      paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
+    }"
   >
     <RouterView />
   </div>

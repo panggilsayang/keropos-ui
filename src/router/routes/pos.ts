@@ -12,6 +12,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/pos/PosTerminal.vue'),
   },
   {
+    path: '/pos/terminal/settings',
+    name: 'pos-terminal-settings',
+    component: () => import('@/pages/pos/PosTerminalSettings.vue'),
+  },
+  {
     path: '/pos/stock',
     name: 'pos-stock',
     component: () => import('@/pages/pos/PosStock.vue'),

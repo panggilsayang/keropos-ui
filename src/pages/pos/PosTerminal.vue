@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   BaseButton,
   BaseBadge,
@@ -18,24 +19,28 @@ import {
   CreditCard,
   Banknote,
   Smartphone,
-  Percent,
   Tag,
   X,
   Star,
   ChevronLeft,
   ChevronRight,
   Printer,
+  Settings,
+  ClipboardList,
 } from '@lucide/vue'
 import type { SelectOption } from '@/components/ui/BaseSelect.vue'
 import { terminal, onSyncEvent } from '@/lib/terminal'
-import type { Transaction, LineItem, PaymentMethod as ApiPaymentMethod, ModifierOption } from '@/lib/terminal'
+import type { Transaction, LineItem, PaymentMethod as ApiPaymentMethod, ModifierOption, PendingOrder } from '@/lib/terminal'
 import ModifierPickerModal from '@/components/pos/ModifierPickerModal.vue'
 import type { ModifierGroupWithOptions } from '@/components/pos/ModifierPickerModal.vue'
+import IncomingOrdersModal from '@/components/pos/IncomingOrdersModal.vue'
 import CashNumpad from '@/components/pos/CashNumpad.vue'
 import { listPairedPrinters, connectPrinter, disconnectPrinter, printReceipt, printTestReceipt, type PairedDevice } from '@/lib/printer'
 import { receiptLines } from '@/lib/receipt'
 
 const PRINTER_STORAGE_KEY = 'purdia_printer_address'
+
+const router = useRouter()
 
 // Display shape the template renders — sourced from the real
 // products/categories/inventory fetched from the embedded terminal core
@@ -47,13 +52,16 @@ interface Product {
   price: number
   category: string
   stock: number
+  // Set only for the synthetic fallback built from a QR order's own
+  // embedded name/price, when the ordered product no longer exists in the
+  // catalog (deleted since the order was placed) — surfaced as a warning
+  // in the cart rather than silently treated like a normal line item.
+  stale?: boolean
 }
 
 interface CartItem {
   product: Product
   qty: number
-  discount: number
-  discountType: 'nominal' | 'percent'
   selectedModifiers: ModifierOption[]
 }
 
@@ -107,10 +115,31 @@ async function refetch() {
   )
 }
 
+// Orders placed via a table's QR menu (handled entirely by pos-api/pos-web
+// — this just pulls/acks/finalizes against the terminal's own OrderService).
+// Polled on a timer since there's no push channel for this today (the
+// forwarded sync events are gossip/inventory only, see onSyncEvent below).
+const pendingOrders = ref<PendingOrder[]>([])
+const showIncomingOrders = ref(false)
+const activeOrderId = ref<string | null>(null)
+let ordersPollHandle: ReturnType<typeof setInterval> | null = null
+
+async function pollPendingOrders() {
+  try {
+    pendingOrders.value = await terminal.listPendingOrders()
+  } catch {
+    // Best-effort background poll — a misconfigured/unreachable server_url
+    // (see PosTerminalSettings.vue) just means an empty list, not a crash.
+  }
+}
+
 let unlistenSync: (() => void) | null = null
 onMounted(async () => {
   await refetch()
   loadPairedPrinters()
+  loadTables()
+  pollPendingOrders()
+  ordersPollHandle = setInterval(pollPendingOrders, 5000)
   // Any peer sync event triggers a full refetch rather than replaying the
   // delta client-side — simpler, and avoids re-implementing
   // SyncService::apply_gossip's logic in TypeScript. Only gossip
@@ -121,7 +150,38 @@ onMounted(async () => {
 })
 onUnmounted(() => {
   unlistenSync?.()
+  if (ordersPollHandle) clearInterval(ordersPollHandle)
 })
+
+// Tapping a pending order in IncomingOrdersModal: ack it (best-effort, just
+// marks it as being handled — doesn't block loading the cart on failure),
+// then replace the current cart with the order's items so the cashier can
+// adjust/add modifiers/pick payment exactly like a walk-in sale.
+async function selectPendingOrder(order: PendingOrder) {
+  showIncomingOrders.value = false
+  try {
+    await terminal.ackPendingOrder(order.id)
+  } catch {
+    // best-effort, see above
+  }
+  const byId = new Map(products.value.map((p) => [p.id, p]))
+  cart.value = order.items.map((item) => {
+    const product = byId.get(item.product_id) ?? {
+      id: item.product_id,
+      name: item.name,
+      price: item.price,
+      category: 'Uncategorized',
+      stock: 0,
+      stale: true,
+    }
+    return { product, qty: item.qty, selectedModifiers: [] }
+  })
+  activeOrderId.value = order.id
+  // The order came from a real table's QR code — reflect that on the
+  // dine-in table select too, instead of leaving it on "Takeaway".
+  selectedTableId.value = order.table_id
+  pendingOrders.value = pendingOrders.value.filter((o) => o.id !== order.id)
+}
 
 const activeCategory = ref('All')
 const searchQuery = ref('')
@@ -173,19 +233,33 @@ function setCategory(cat: string) {
   currentPage.value = 1
 }
 
-// Customer
-const customerType = ref<string | number>('walkin')
-const customerName = ref('')
-const memberSearch = ref<string | number>('')
+// Dine-in / takeaway — same concept as pos-web's "Table (dine-in)" picker
+// (apps/pos-web/src/pages/pos/PosPage.tsx): the real tables list (also used
+// by QR ordering), with the sentinel `TAKEAWAY` value meaning no table.
+// Cosmetic only — like pos-web, the choice is never sent in the
+// `Transaction` payload (pos_core::Transaction has no table field), just
+// printed on the receipt.
+const TAKEAWAY = 'takeaway'
+const tables = ref<Awaited<ReturnType<typeof terminal.listTables>>>([])
+const selectedTableId = ref(TAKEAWAY)
 
-const customerTypeOptions: SelectOption[] = [
-  { label: 'Walk-in', value: 'walkin' },
-  { label: 'Member', value: 'member' },
-]
+const tableSelectOptions = computed<SelectOption[]>(() => [
+  { label: 'Takeaway (no table)', value: TAKEAWAY },
+  ...tables.value.map((t) => ({ label: t.label, value: t.id })),
+])
 
-// Discount global
-const globalDiscount = ref(0)
-const globalDiscountType = ref<'nominal' | 'percent'>('percent')
+const selectedTableLabel = computed(
+  () => tables.value.find((t) => t.id === selectedTableId.value)?.label ?? null,
+)
+
+async function loadTables() {
+  try {
+    tables.value = await terminal.listTables()
+  } catch {
+    // Best-effort, same as pollPendingOrders — an unreachable server_url
+    // just means the picker only offers "Takeaway", not a crash.
+  }
+}
 
 // Payment
 const showPayment = ref(false)
@@ -210,6 +284,7 @@ const printStatus = ref('')
 // which clears on checkout) so the cashier can print an extra copy for the
 // buyer on request, at any point after the fact, not just immediately.
 const lastTransaction = ref<Transaction | null>(null)
+const lastTransactionTableLabel = ref<string | null>(null)
 const printingCopy = ref(false)
 
 async function loadPairedPrinters() {
@@ -240,11 +315,11 @@ async function testPrint() {
   }
 }
 
-async function printLastReceipt(tx: Transaction, label?: string) {
+async function printLastReceipt(tx: Transaction, label?: string, tableLabel?: string | null) {
   if (!selectedPrinterAddress.value) return
   try {
     await connectPrinter(selectedPrinterAddress.value)
-    await printReceipt(selectedPrinterAddress.value, receiptLines(tx, label))
+    await printReceipt(selectedPrinterAddress.value, receiptLines(tx, label, tableLabel))
     await disconnectPrinter(selectedPrinterAddress.value)
   } catch (e) {
     printStatus.value = 'Print failed: ' + (e instanceof Error ? e.message : String(e))
@@ -259,7 +334,7 @@ async function printCustomerCopy() {
   if (!lastTransaction.value || !selectedPrinterAddress.value || printingCopy.value) return
   printingCopy.value = true
   try {
-    await printLastReceipt(lastTransaction.value, 'CUSTOMER COPY')
+    await printLastReceipt(lastTransaction.value, 'CUSTOMER COPY', lastTransactionTableLabel.value)
   } finally {
     printingCopy.value = false
   }
@@ -293,13 +368,6 @@ const ewalletIssuerOptions: SelectOption[] = [
   { label: 'QRIS', value: 'qris' },
 ]
 
-const memberOptions: SelectOption[] = [
-  { label: 'Budi Santoso - M001', value: 'M001' },
-  { label: 'Siti Rahayu - M002', value: 'M002' },
-  { label: 'Ahmad Fauzi - M003', value: 'M003' },
-  { label: 'Lisa Permata - M004', value: 'M004' },
-]
-
 function addToCart(product: Product, selectedModifiers: ModifierOption[] = []) {
   const modifierKey = (mods: ModifierOption[]) =>
     mods
@@ -312,7 +380,7 @@ function addToCart(product: Product, selectedModifiers: ModifierOption[] = []) {
   if (existing) {
     existing.qty++
   } else {
-    cart.value.push({ product, qty: 1, discount: 0, discountType: 'percent', selectedModifiers })
+    cart.value.push({ product, qty: 1, selectedModifiers })
   }
 }
 
@@ -360,21 +428,12 @@ function modifierDelta(item: CartItem) {
 }
 
 function getItemTotal(item: CartItem) {
-  const base = (item.product.price + modifierDelta(item)) * item.qty
-  if (item.discount <= 0) return base
-  if (item.discountType === 'percent') return base - (base * item.discount) / 100
-  return base - item.discount
+  return (item.product.price + modifierDelta(item)) * item.qty
 }
 
 const subtotal = computed(() => cart.value.reduce((sum, item) => sum + getItemTotal(item), 0))
 
-const globalDiscountAmount = computed(() => {
-  if (globalDiscount.value <= 0) return 0
-  if (globalDiscountType.value === 'percent') return (subtotal.value * globalDiscount.value) / 100
-  return globalDiscount.value
-})
-
-const grandTotal = computed(() => Math.max(0, subtotal.value - globalDiscountAmount.value))
+const grandTotal = computed(() => subtotal.value)
 const change = computed(() => Math.max(0, cashReceived.value - grandTotal.value))
 
 function openPayment() {
@@ -402,24 +461,15 @@ function toApiPaymentMethod(method: string | number): ApiPaymentMethod {
   }
 }
 
-// `pos_core::LineItem`/`Transaction` have no discount field at all, so
-// per-line and global discounts (both UI-only concepts here) are folded
-// into the unit price sent to the backend — this loses the discount audit
-// trail (known gap; would need a pos-core schema change to fix properly).
-// The global discount is distributed proportionally across lines so the
-// sum still matches `grandTotal`.
 function buildLineItems(): LineItem[] {
-  const scale = subtotal.value > 0 ? grandTotal.value / subtotal.value : 1
   return cart.value.map((item) => {
-    const lineTotal = Math.round(getItemTotal(item) * scale)
-    const unitPrice = item.qty > 0 ? Math.round(lineTotal / item.qty) : item.product.price
     const modifierSuffix = item.selectedModifiers.length
       ? ` (${item.selectedModifiers.map((m) => m.name).join(', ')})`
       : ''
     return {
       product_id: item.product.id,
       name: item.product.name + modifierSuffix,
-      price: unitPrice,
+      price: item.product.price + modifierDelta(item),
       qty: item.qty,
     }
   })
@@ -436,7 +486,7 @@ async function completeTransaction() {
       total: grandTotal.value,
       payment_method: toApiPaymentMethod(paymentMethod.value),
       payment_status: 'paid',
-      order_id: null,
+      order_id: activeOrderId.value,
       paid_ms: Date.now(),
       synced: false,
     }
@@ -446,12 +496,21 @@ async function completeTransaction() {
     // for picking up *other* terminals' sales.
     await refetch()
     lastTransaction.value = tx
-    await printLastReceipt(tx, 'STORE COPY')
+    lastTransactionTableLabel.value = selectedTableLabel.value
+    await printLastReceipt(tx, 'STORE COPY', selectedTableLabel.value)
+    // Best-effort: the local sale is already committed by this point, so a
+    // failure here is surfaced but never undoes/blocks the checkout — same
+    // philosophy as receipt printing above.
+    if (activeOrderId.value) {
+      try {
+        await terminal.finalizePendingOrder(activeOrderId.value, tx.id)
+      } catch (e) {
+        checkoutError.value = 'Order finalize failed: ' + (e instanceof Error ? e.message : String(e))
+      }
+      activeOrderId.value = null
+    }
     cart.value = []
-    globalDiscount.value = 0
-    customerType.value = 'walkin'
-    customerName.value = ''
-    memberSearch.value = ''
+    selectedTableId.value = TAKEAWAY
     cardNumber.value = ''
     cardIssuer.value = ''
     ewalletIssuer.value = ''
@@ -609,26 +668,38 @@ function formatRp(n: number) {
             >
               <Printer class="w-4 h-4" />
             </button>
+            <button
+              class="relative cursor-pointer text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400"
+              aria-label="Incoming orders"
+              @click="showIncomingOrders = true"
+            >
+              <ClipboardList class="w-4 h-4" />
+              <span
+                v-if="pendingOrders.length > 0"
+                class="absolute -top-1.5 -right-1.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[0.5625rem] leading-3.5 text-center"
+              >
+                {{ pendingOrders.length }}
+              </span>
+            </button>
+            <button
+              class="cursor-pointer text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400"
+              aria-label="Terminal settings"
+              @click="router.push({ name: 'pos-terminal-settings' })"
+            >
+              <Settings class="w-4 h-4" />
+            </button>
             <span class="text-xs text-gray-400 dark:text-gray-500">Cashier: Angga</span>
           </div>
         </div>
-        <!-- Customer Type -->
+        <!-- Dine-in table / takeaway -->
         <BaseSelect
-          v-model="customerType"
-          :options="customerTypeOptions"
+          v-model="selectedTableId"
+          :options="tableSelectOptions"
           :searchable="false"
           :clearable="false"
           size="sm"
-          placeholder="Customer type"
+          placeholder="Table (dine-in)"
         />
-        <div v-if="customerType === 'member'" class="mt-2">
-          <BaseSelect
-            v-model="memberSearch"
-            :options="memberOptions"
-            placeholder="Search member..."
-            size="sm"
-          />
-        </div>
       </div>
 
       <!-- Cart Items -->
@@ -650,6 +721,9 @@ function formatRp(n: number) {
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-gray-800 truncate dark:text-gray-200">
                   {{ item.product.name }}
+                </p>
+                <p v-if="item.product.stale" class="text-[0.625rem] text-red-500 dark:text-red-400">
+                  ⚠ Deleted from catalog — using order's saved name/price
                 </p>
                 <p
                   v-if="item.selectedModifiers.length"
@@ -690,81 +764,16 @@ function formatRp(n: number) {
                 </button>
               </div>
             </div>
-            <!-- Inline discount -->
-            <div class="flex items-center gap-1.5 mt-1.5">
-              <Percent class="w-3 h-3 text-gray-400 shrink-0 dark:text-gray-500" />
-              <input
-                v-model.number="item.discount"
-                type="number"
-                min="0"
-                placeholder="Disc"
-                class="w-16 text-[0.6875rem] px-1.5 py-0.5 border border-gray-200 rounded outline-none focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-              />
-              <button
-                class="text-[0.625rem] px-1.5 py-0.5 rounded font-medium cursor-pointer transition-colors"
-                :class="
-                  item.discountType === 'percent'
-                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
-                "
-                @click="item.discountType = 'percent'"
-              >
-                %
-              </button>
-              <button
-                class="text-[0.625rem] px-1.5 py-0.5 rounded font-medium cursor-pointer transition-colors"
-                :class="
-                  item.discountType === 'nominal'
-                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
-                "
-                @click="item.discountType = 'nominal'"
-              >
-                Rp
-              </button>
-              <span
-                v-if="item.discount > 0"
-                class="text-[0.625rem] text-amber-600 dark:text-amber-400 ml-auto"
-              >
-                -{{
-                  item.discountType === 'percent' ? `${item.discount}%` : formatRp(item.discount)
-                }}
-              </span>
-            </div>
           </div>
         </div>
       </div>
 
       <!-- Cart Footer -->
       <div class="shrink-0 border-t border-gray-100 px-4 py-3 space-y-2 dark:border-gray-700">
-        <div class="flex items-center gap-2">
-          <Tag class="w-4 h-4 text-gray-400 dark:text-gray-500" />
-          <input
-            v-model.number="globalDiscount"
-            type="number"
-            min="0"
-            class="flex-1 text-sm border border-gray-200 rounded px-2 py-1 outline-none focus:border-primary-500 w-20 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-            placeholder="Discount"
-          />
-          <select
-            v-model="globalDiscountType"
-            class="text-xs border border-gray-200 rounded px-2 py-1 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-          >
-            <option value="percent">%</option>
-            <option value="nominal">Rp</option>
-          </select>
-        </div>
         <div class="space-y-1 text-sm">
           <div class="flex justify-between text-gray-500 dark:text-gray-400">
             <span>Subtotal</span>
             <span>{{ formatRp(subtotal) }}</span>
-          </div>
-          <div
-            v-if="globalDiscountAmount > 0"
-            class="flex justify-between text-amber-600 dark:text-amber-400"
-          >
-            <span>Discount</span>
-            <span>-{{ formatRp(globalDiscountAmount) }}</span>
           </div>
           <div
             class="flex justify-between text-lg font-bold text-gray-900 pt-1 border-t border-gray-100 dark:text-gray-100 dark:border-gray-700"
@@ -879,6 +888,12 @@ function formatRp(n: number) {
       :product-name="modifierPickerProduct?.name ?? ''"
       :groups="modifierPickerGroups"
       @confirm="onModifierConfirm"
+    />
+
+    <IncomingOrdersModal
+      v-model="showIncomingOrders"
+      :orders="pendingOrders"
+      @select="selectPendingOrder"
     />
 
     <!-- Printer Picker -->

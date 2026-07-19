@@ -7,8 +7,12 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 use pos_terminal::api::AppState;
-use pos_terminal::boot::{boot, BootPaths};
+use pos_terminal::boot::{boot, BootPaths, ServerSettings};
 use tauri::{Emitter, Manager};
+
+/// The `BootPaths` used at startup, kept around so the settings commands can
+/// re-read/rewrite `terminal.toml` without re-deriving the app data dir.
+struct ConfigPaths(BootPaths);
 
 #[tauri::command]
 async fn list_products(state: tauri::State<'_, AppState>) -> Result<Vec<pos_core::Product>, String> {
@@ -56,6 +60,118 @@ async fn get_product_modifier_groups(
     state
         .catalog
         .get_product_modifier_groups(product_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[derive(serde::Serialize)]
+struct ServerSettingsView {
+    server_url: String,
+    store_id: String,
+}
+
+#[tauri::command]
+async fn get_server_settings(
+    paths: tauri::State<'_, ConfigPaths>,
+) -> Result<ServerSettingsView, String> {
+    let s = pos_terminal::boot::read_server_settings(&paths.0).map_err(|e| e.to_string())?;
+    Ok(ServerSettingsView {
+        server_url: s.server_url,
+        store_id: s.store_id.to_string(),
+    })
+}
+
+/// Persists to `terminal.toml` immediately, but only takes effect on the
+/// *next* app launch — `OrderService` (and everything else in `AppState`)
+/// is already constructed with the old values baked in for this process's
+/// lifetime. The frontend tells the cashier to restart the app.
+#[tauri::command]
+async fn save_server_settings(
+    paths: tauri::State<'_, ConfigPaths>,
+    server_url: String,
+    store_id: String,
+) -> Result<(), String> {
+    let store_id = uuid::Uuid::parse_str(&store_id).map_err(|e| format!("invalid store id: {e}"))?;
+    pos_terminal::boot::write_server_settings(&paths.0, &ServerSettings { server_url, store_id })
+        .map_err(|e| e.to_string())
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PendingOrderItem {
+    product_id: uuid::Uuid,
+    name: String,
+    price: i64,
+    qty: i64,
+}
+
+#[derive(serde::Serialize)]
+struct PendingOrder {
+    id: uuid::Uuid,
+    table_id: uuid::Uuid,
+    customer_name: Option<String>,
+    items: Vec<PendingOrderItem>,
+    subtotal: i64,
+    status: String,
+    created_ms: i64,
+}
+
+/// Mirrors `pos-api`'s order row shape closely enough to deserialize it —
+/// `items` is stored (and returned) as a JSON *string*, not a nested value,
+/// so it needs a second `serde_json::from_str` pass after the outer parse.
+#[derive(serde::Deserialize)]
+struct RawOrderRow {
+    id: uuid::Uuid,
+    table_id: uuid::Uuid,
+    customer_name: Option<String>,
+    items: String,
+    subtotal: i64,
+    status: String,
+    created_ms: i64,
+}
+
+#[tauri::command]
+async fn list_pending_orders(state: tauri::State<'_, AppState>) -> Result<Vec<PendingOrder>, String> {
+    let raw = state.order.pull_pending().await.map_err(|e| e.to_string())?;
+    raw.into_iter()
+        .map(|v| {
+            let row: RawOrderRow = serde_json::from_value(v).map_err(|e| e.to_string())?;
+            let items: Vec<PendingOrderItem> =
+                serde_json::from_str(&row.items).map_err(|e| e.to_string())?;
+            Ok(PendingOrder {
+                id: row.id,
+                table_id: row.table_id,
+                customer_name: row.customer_name,
+                items,
+                subtotal: row.subtotal,
+                status: row.status,
+                created_ms: row.created_ms,
+            })
+        })
+        .collect()
+}
+
+#[tauri::command]
+async fn list_tables(state: tauri::State<'_, AppState>) -> Result<Vec<pos_core::Table>, String> {
+    state.order.list_tables().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn ack_pending_order(
+    state: tauri::State<'_, AppState>,
+    order_id: uuid::Uuid,
+) -> Result<(), String> {
+    state.order.ack_order(order_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn finalize_pending_order(
+    state: tauri::State<'_, AppState>,
+    order_id: uuid::Uuid,
+    transaction_id: uuid::Uuid,
+) -> Result<(), String> {
+    state
+        .order
+        .finalize_order(order_id, transaction_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -126,6 +242,7 @@ pub fn run() {
             let booted = tauri::async_runtime::block_on(boot(&paths)).expect("boot terminal core");
 
             app.manage(booted.state.clone());
+            app.manage(ConfigPaths(paths));
 
             // No HTTP server spawned here: this is a single tablet's embedded
             // terminal, not a daemon other devices dial into. If a LAN-facing
@@ -166,6 +283,12 @@ pub fn run() {
             list_modifier_options,
             get_product_modifier_groups,
             checkout,
+            get_server_settings,
+            save_server_settings,
+            list_pending_orders,
+            list_tables,
+            ack_pending_order,
+            finalize_pending_order,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
