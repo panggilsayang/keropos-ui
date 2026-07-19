@@ -25,6 +25,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Ticket,
+  Pause,
+  Play,
+  Clock,
+  MapPin,
 } from '@lucide/vue'
 import type { SelectOption } from '@/components/ui/BaseSelect.vue'
 
@@ -594,6 +598,179 @@ function completeTransaction() {
   showPayment.value = false
 }
 
+// ---------------------------------------------------------------------------
+// Hold Order & Table/Tab System
+// ---------------------------------------------------------------------------
+
+interface HeldOrder {
+  id: string
+  items: CartItem[]
+  customerType: string | number
+  memberSearch: string | number
+  globalDiscount: number
+  globalDiscountType: 'nominal' | 'percent'
+  appliedVoucher: Voucher | null
+  table: string | null // null = takeaway / no table
+  label: string // customer name or order label
+  createdAt: number
+  subtotal: number
+}
+
+const heldOrders = ref<HeldOrder[]>([])
+const showHeldOrders = ref(false)
+const showHoldDialog = ref(false)
+const holdLabel = ref('')
+const holdTable = ref<string | null>(null)
+
+// Table setup
+const tables: { id: string; name: string }[] = [
+  { id: 'T1', name: 'Meja 1' },
+  { id: 'T2', name: 'Meja 2' },
+  { id: 'T3', name: 'Meja 3' },
+  { id: 'T4', name: 'Meja 4' },
+  { id: 'T5', name: 'Meja 5' },
+  { id: 'T6', name: 'Meja 6' },
+  { id: 'T7', name: 'Meja 7' },
+  { id: 'T8', name: 'Meja 8' },
+  { id: 'T9', name: 'Meja 9' },
+  { id: 'T10', name: 'Meja 10' },
+  { id: 'T11', name: 'Meja 11' },
+  { id: 'T12', name: 'Meja 12' },
+]
+
+function getOccupiedTables() {
+  return new Set(heldOrders.value.filter((o) => o.table).map((o) => o.table))
+}
+
+function isTableOccupied(tableId: string) {
+  return getOccupiedTables().has(tableId)
+}
+
+function getTableOrder(tableId: string) {
+  return heldOrders.value.find((o) => o.table === tableId)
+}
+
+function openHoldDialog() {
+  if (cart.value.length === 0) return
+  holdLabel.value = ''
+  holdTable.value = null
+  showHoldDialog.value = true
+}
+
+function generateOrderId() {
+  return 'ORD-' + Date.now().toString(36).toUpperCase()
+}
+
+function holdOrder() {
+  if (cart.value.length === 0) return
+
+  // If assigning to a table that already has an order, merge items
+  if (holdTable.value) {
+    const existingOrder = getTableOrder(holdTable.value)
+    if (existingOrder) {
+      // Merge: add current cart items to existing order
+      for (const item of cart.value) {
+        const variantKey = item.selectedVariants.map((v) => `${v.name}:${v.option.value}`).join('|')
+        const existing = existingOrder.items.find((c) => {
+          if (c.product.id !== item.product.id) return false
+          return c.selectedVariants.map((v) => `${v.name}:${v.option.value}`).join('|') === variantKey
+        })
+        if (existing) {
+          existing.qty += item.qty
+        } else {
+          existingOrder.items.push({ ...item })
+        }
+      }
+      // Recalculate subtotal
+      existingOrder.subtotal = existingOrder.items.reduce((sum, i) => {
+        const extra = i.selectedVariants.reduce((s, v) => s + v.option.extraPrice, 0)
+        return sum + (i.product.price + extra) * i.qty
+      }, 0)
+      resetCart()
+      showHoldDialog.value = false
+      return
+    }
+  }
+
+  // Create new held order
+  const order: HeldOrder = {
+    id: generateOrderId(),
+    items: [...cart.value],
+    customerType: customerType.value,
+    memberSearch: memberSearch.value,
+    globalDiscount: globalDiscount.value,
+    globalDiscountType: globalDiscountType.value,
+    appliedVoucher: appliedVoucher.value,
+    table: holdTable.value,
+    label: holdLabel.value || (holdTable.value ? tables.find((t) => t.id === holdTable.value)?.name ?? '' : 'Order'),
+    createdAt: Date.now(),
+    subtotal: subtotal.value,
+  }
+
+  heldOrders.value.push(order)
+  resetCart()
+  showHoldDialog.value = false
+}
+
+function recallOrder(orderId: string) {
+  const idx = heldOrders.value.findIndex((o) => o.id === orderId)
+  if (idx === -1) return
+
+  const order = heldOrders.value[idx]!
+
+  // If current cart has items, ask to hold first? For now, replace.
+  cart.value = [...order.items]
+  customerType.value = order.customerType
+  memberSearch.value = order.memberSearch
+  globalDiscount.value = order.globalDiscount
+  globalDiscountType.value = order.globalDiscountType
+  appliedVoucher.value = order.appliedVoucher
+  voucherCode.value = ''
+  voucherError.value = ''
+
+  // Remove from held orders
+  heldOrders.value.splice(idx, 1)
+  showHeldOrders.value = false
+}
+
+function addItemsToTable(tableId: string) {
+  // Set up hold dialog pre-filled with this table
+  if (cart.value.length === 0) return
+  holdLabel.value = ''
+  holdTable.value = tableId
+  // Directly hold (merge) without showing dialog
+  holdOrder()
+}
+
+function voidOrder(orderId: string) {
+  const idx = heldOrders.value.findIndex((o) => o.id === orderId)
+  if (idx !== -1) {
+    heldOrders.value.splice(idx, 1)
+  }
+}
+
+function resetCart() {
+  cart.value = []
+  globalDiscount.value = 0
+  globalDiscountType.value = 'percent'
+  appliedVoucher.value = null
+  voucherCode.value = ''
+  voucherError.value = ''
+  customerType.value = 'walkin'
+  customerName.value = ''
+  memberSearch.value = ''
+}
+
+function getTimeSince(timestamp: number) {
+  const diff = Math.floor((Date.now() - timestamp) / 60000)
+  if (diff < 1) return 'Baru saja'
+  if (diff < 60) return `${diff} menit lalu`
+  const hours = Math.floor(diff / 60)
+  return `${hours} jam lalu`
+}
+
+const heldOrdersCount = computed(() => heldOrders.value.length)
+
 function formatRp(n: number) {
   return 'Rp ' + n.toLocaleString('id-ID')
 }
@@ -801,7 +978,19 @@ const numpadLabel = computed(() => {
       <div class="px-4 py-3 border-b border-gray-100 shrink-0 dark:border-gray-700">
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold text-gray-900 dark:text-gray-100">Current Order</h3>
-          <span class="text-xs text-gray-400 dark:text-gray-500">Cashier: Angga</span>
+          <button
+            class="relative flex items-center gap-1 text-xs text-gray-500 hover:text-primary-600 cursor-pointer transition-colors dark:text-gray-400 dark:hover:text-primary-400"
+            @click="showHeldOrders = true"
+          >
+            <Clock class="w-3.5 h-3.5" />
+            <span>Held Orders</span>
+            <span
+              v-if="heldOrdersCount > 0"
+              class="absolute -top-1.5 -right-2.5 w-4 h-4 bg-amber-500 text-white text-[0.6rem] font-bold rounded-full flex items-center justify-center"
+            >
+              {{ heldOrdersCount }}
+            </span>
+          </button>
         </div>
         <!-- Customer Type -->
         <BaseSelect
@@ -1000,9 +1189,19 @@ const numpadLabel = computed(() => {
             <span>{{ formatRp(grandTotal) }}</span>
           </div>
         </div>
-        <BaseButton block :disabled="cart.length === 0" @click="openPayment">
-          <CreditCard class="w-4 h-4" /> Pay {{ formatRp(grandTotal) }}
-        </BaseButton>
+        <div class="flex gap-2">
+          <BaseButton
+            variant="outline"
+            class="flex-1"
+            :disabled="cart.length === 0"
+            @click="openHoldDialog"
+          >
+            <Pause class="w-4 h-4" /> Hold
+          </BaseButton>
+          <BaseButton class="flex-[2]" :disabled="cart.length === 0" @click="openPayment">
+            <CreditCard class="w-4 h-4" /> Pay {{ formatRp(grandTotal) }}
+          </BaseButton>
+        </div>
       </div>
     </div>
 
@@ -1178,6 +1377,113 @@ const numpadLabel = computed(() => {
           <Plus class="w-4 h-4" /> Tambah ke Keranjang
         </BaseButton>
       </template>
+    </BaseModal>
+
+    <!-- Hold Order Dialog -->
+    <BaseModal v-model="showHoldDialog" title="Hold Order" size="sm">
+      <div class="space-y-4">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Simpan order ini untuk dilanjutkan nanti.
+        </p>
+        <!-- Label -->
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1 dark:text-gray-300">Label / Nama Customer</label>
+          <input
+            v-model="holdLabel"
+            type="text"
+            placeholder="Opsional (contoh: Pak Budi, Takeaway #3)"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-900/30"
+          />
+        </div>
+        <!-- Table selector -->
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1.5 dark:text-gray-300">
+            Assign ke Meja <span class="text-gray-400 font-normal">(opsional)</span>
+          </label>
+          <div class="grid grid-cols-4 gap-2">
+            <button
+              v-for="table in tables"
+              :key="table.id"
+              class="relative px-2 py-2 text-xs font-medium rounded-lg border transition-all cursor-pointer text-center"
+              :class="
+                holdTable === table.id
+                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-500'
+                  : isTableOccupied(table.id)
+                    ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-800'
+              "
+              @click="holdTable = holdTable === table.id ? null : table.id"
+            >
+              <MapPin v-if="isTableOccupied(table.id) && holdTable !== table.id" class="w-3 h-3 mx-auto mb-0.5 text-amber-500 dark:text-amber-400" />
+              <span>{{ table.name.replace('Meja ', '') }}</span>
+            </button>
+          </div>
+          <p v-if="holdTable && isTableOccupied(holdTable)" class="text-[0.625rem] text-amber-600 mt-1.5 dark:text-amber-400">
+            Meja ini sudah ada order — item akan digabung.
+          </p>
+        </div>
+      </div>
+      <template #footer>
+        <BaseButton variant="ghost" size="sm" @click="showHoldDialog = false">Batal</BaseButton>
+        <BaseButton variant="primary" size="sm" @click="holdOrder">
+          <Pause class="w-4 h-4" /> Hold Order
+        </BaseButton>
+      </template>
+    </BaseModal>
+
+    <!-- Held Orders Panel -->
+    <BaseModal v-model="showHeldOrders" title="Held Orders" size="lg">
+      <div v-if="heldOrders.length === 0" class="py-8 text-center">
+        <Clock class="w-12 h-12 text-gray-300 mx-auto mb-2 dark:text-gray-600" />
+        <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada order yang di-hold</p>
+      </div>
+      <div v-else class="space-y-3">
+        <div
+          v-for="order in heldOrders"
+          :key="order.id"
+          class="border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition-colors dark:border-gray-700 dark:hover:border-gray-600"
+        >
+          <div class="flex items-start justify-between mb-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ order.label || order.id }}</p>
+                <BaseBadge v-if="order.table" variant="info" size="sm">
+                  <MapPin class="w-3 h-3" /> {{ tables.find(t => t.id === order.table)?.name }}
+                </BaseBadge>
+              </div>
+              <p class="text-xs text-gray-400 dark:text-gray-500">
+                {{ order.id }} · {{ getTimeSince(order.createdAt) }}
+              </p>
+            </div>
+            <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ formatRp(order.subtotal) }}</p>
+          </div>
+          <!-- Items preview -->
+          <div class="flex flex-wrap gap-1 mb-3">
+            <span
+              v-for="(item, i) in order.items.slice(0, 4)"
+              :key="i"
+              class="text-[0.625rem] px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+            >
+              {{ item.qty }}x {{ item.product.name }}
+            </span>
+            <span
+              v-if="order.items.length > 4"
+              class="text-[0.625rem] px-1.5 py-0.5 bg-gray-100 rounded text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+            >
+              +{{ order.items.length - 4 }} lainnya
+            </span>
+          </div>
+          <!-- Actions -->
+          <div class="flex gap-2">
+            <BaseButton variant="primary" size="sm" class="flex-1" @click="recallOrder(order.id)">
+              <Play class="w-3.5 h-3.5" /> Lanjutkan
+            </BaseButton>
+            <BaseButton variant="danger" size="sm" @click="voidOrder(order.id)">
+              <Trash2 class="w-3.5 h-3.5" /> Void
+            </BaseButton>
+          </div>
+        </div>
+      </div>
     </BaseModal>
   </div>
 </template>
